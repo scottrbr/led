@@ -218,7 +218,7 @@ def Twinkle(strip, numOfLights, LEDMaxBright, NumOfLoops):
     light_curr_life = [0] * numOfLights
     light_max_life = random.sample(xrange(10, 100), numOfLights)   # Life is in number of loops
     light_brightness = random.sample(xrange(1, LEDMaxBright), numOfLights) # randomize maximum life (100 ms minimum)
-    #individual_light_color = random.sample(xrange(0,255), numOfLights)     
+    # individual_light_color = random.sample(xrange(0,255), numOfLights)     
 
     for loop in range(NumOfLoops):
 
@@ -292,6 +292,9 @@ def LED_strip_CallBack(client, userdata, message):
         #Twinkle(strip, 10, 255, 1)
     elif topic == "break":
         gblBreak = True
+    elif topic == "exit":
+        gblExit = True
+
 
     gblBreak = False
 
