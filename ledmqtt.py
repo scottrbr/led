@@ -27,7 +27,6 @@
 
 import sys
 import random
-#from random import randint
 import time
 import thread
 from neopixel import *
@@ -95,6 +94,17 @@ def wheel(pos):
     else:
         pos -= 170
         return Color(0, pos * 3, 255 - pos * 3)
+
+#def wheel_with_level(pos, level):
+#    """Generate rainbow colors across 0-255 positions."""
+#    if pos < 85:
+#        return Color(pos * 3, 255 - pos * 3, 0)
+#    elif pos < 170:
+#        pos -= 85
+#        return Color(255 - pos * 3, 0, pos * 3)
+#    else:
+#        pos -= 170
+#        return Color(0, pos * 3, 255 - pos * 3)
 
 def rainbow(strip, wait_ms=20, iterations=1):
 
@@ -199,13 +209,13 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
 #
 # There is a known issue that when I get a new randome led, I do not check if it is a duplicate 
 #
-def Twinkle(strip, numOfLights, LEDMaxBright, NumOfLoops):
+def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
 
     global gblBreak
 
-    # Initial the strip
+    # Initial the strip to turn off all lights but set the brightness to maximum
     set_strip_color(strip, "000000,255")
-    strip.setBrightness(255)
+    start_time = time.time()
 
     #
     # Intialize all of our arrays
@@ -218,9 +228,10 @@ def Twinkle(strip, numOfLights, LEDMaxBright, NumOfLoops):
     light_curr_life = [0] * numOfLights
     light_max_life = random.sample(xrange(10, 100), numOfLights)   # Life is in number of loops
     light_brightness = random.sample(xrange(1, LEDMaxBright), numOfLights) # randomize maximum life (100 ms minimum)
-    # individual_light_color = random.sample(xrange(0,255), numOfLights)     
+    individual_light_color = [[random.random() for i in range(3)] for j in range(numOfLights)]
 
-    for loop in range(NumOfLoops):
+    #for loop in range(NumOfLoops):
+    while (1):
 
         for i in range(numOfLights):
 
@@ -253,8 +264,21 @@ def Twinkle(strip, numOfLights, LEDMaxBright, NumOfLoops):
                     light_curr_life[i] = 0
                     light_increment[i] = True
 
-            light_color = light_brightness[i]/(light_max_life[i]/2) * light_curr_life[i]
-            strip.setPixelColor(lights[i], Color(light_color, light_color, light_color))
+            # light_color = light_brightness[i]/(light_max_life[i]/2) * light_curr_life[i]
+            light_level = light_brightness[i]/(light_max_life[i]/2) * light_curr_life[i]
+
+            l1 = individual_light_color[i][0] 
+            l2 = individual_light_color[i][1] 
+            l3 = individual_light_color[i][2] 
+
+            if ColorTwinkle:
+                strip.setPixelColor(lights[i], Color(int(light_level*l1), int(light_level*l2), int(light_level*l3)))
+            else:
+                strip.setPixelColor(lights[i], Color(light_level, light_level, light_level))
+
+            elapsed_time = time.time() - start_time
+            if elapsed_time> (Minutes*60):
+                return
 
         strip.show()
 
@@ -266,6 +290,7 @@ def Twinkle(strip, numOfLights, LEDMaxBright, NumOfLoops):
 def LED_strip_CallBack(client, userdata, message):
 
     global gblBreak
+    global gblExit
 
     topic = str(message.topic)
 
@@ -288,13 +313,16 @@ def LED_strip_CallBack(client, userdata, message):
     elif topic == "cylon":
         CylonBounce(strip, 0, 255, 0, 4, 20, 500)
     elif topic == "twinkle":
-        thread.start_new_thread( Twinkle, (strip, 10, 255, 200000) )
-        #Twinkle(strip, 10, 255, 1)
+        Minutes = int(message)
+        thread.start_new_thread( Twinkle, (strip, 10, 255, Minutes, False))
+    elif topic == "ctwinkle":
+        Minutes = int(message)
+        thread.start_new_thread( Twinkle, (strip, 10, 255, Minutes, True))
     elif topic == "break":
         gblBreak = True
     elif topic == "exit":
         gblExit = True
-
+        print("Should exit")
 
     gblBreak = False
 
@@ -303,8 +331,10 @@ def LED_strip_CallBack(client, userdata, message):
 if __name__ == '__main__':
 
     global gblBreak
+    global gblExit
 
     gblBreak = False
+    gblExit = False
 
     # Create NeoPixel object with appropriate configuration.
     strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
@@ -322,16 +352,19 @@ if __name__ == '__main__':
     ourClient.subscribe("theaterchase")          # Subscribe to the topic
     ourClient.subscribe("cylon")                 # Subscribe to the topic
     ourClient.subscribe("twinkle")               # Subscribe to the topic
+    ourClient.subscribe("ctwinkle")               # Subscribe to the topic
     ourClient.subscribe("break")                 # Subscribe to the topic
+    ourClient.subscribe("exit")                  # Subscribe to the topic
     ourClient.on_message = LED_strip_CallBack    # Attach the messageFunction to subscription
     ourClient.loop_start()                       # Start the MQTT client
 #    ourClient.loop_forever()                       # Start the MQTT client
 
 
 # Main program loop
-    while (1):
+    while not gblExit:
         #ourClient.publish("AC_unit", "on")  # Publish message to MQTT broker
         time.sleep(1)  # Sleep for a second
+
 
 
 
