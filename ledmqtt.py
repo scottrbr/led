@@ -34,7 +34,7 @@ import paho.mqtt.client as mqtt  # Import the MQTT library
 
 
 # LED strip configuration:
-LED_COUNT      = 150      # Number of LED pixels.
+LED_COUNT      = 300      # Number of LED pixels.
 LED_PIN        = 18      # GPIO pin connected to the pixels (18 uses PWM!).
 LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
 LED_DMA        = 10      # DMA channel to use for generating signal (try 10)
@@ -106,7 +106,7 @@ def wheel(pos):
 #        pos -= 170
 #        return Color(0, pos * 3, 255 - pos * 3)
 
-def rainbow(strip, wait_ms=20, iterations=1):
+def rainbow(strip, wait_ms=50, iterations=10):
 
     global gblBreak
 
@@ -314,10 +314,10 @@ def LED_strip_CallBack(client, userdata, message):
         CylonBounce(strip, 0, 255, 0, 4, 20, 500)
     elif topic == "twinkle":
         Minutes = int(message)
-        thread.start_new_thread( Twinkle, (strip, 10, 255, Minutes, False))
+        thread.start_new_thread( Twinkle, (strip, 25, 255, Minutes, False))
     elif topic == "ctwinkle":
         Minutes = int(message)
-        thread.start_new_thread( Twinkle, (strip, 10, 255, Minutes, True))
+        thread.start_new_thread( Twinkle, (strip, 25, 255, Minutes, True))
     elif topic == "break":
         gblBreak = True
     elif topic == "exit":
@@ -332,6 +332,8 @@ if __name__ == '__main__':
 
     global gblBreak
     global gblExit
+
+    time.sleep(10)
 
     gblBreak = False
     gblExit = False
