@@ -28,8 +28,9 @@
 import sys
 import random
 import time
-import thread
-from neopixel import *
+import _thread
+#from neopixel import *
+from rpi_ws281x import *
 import paho.mqtt.client as mqtt  # Import the MQTT library
 
 
@@ -95,17 +96,7 @@ def wheel(pos):
         pos -= 170
         return Color(0, pos * 3, 255 - pos * 3)
 
-#def wheel_with_level(pos, level):
-#    """Generate rainbow colors across 0-255 positions."""
-#    if pos < 85:
-#        return Color(pos * 3, 255 - pos * 3, 0)
-#    elif pos < 170:
-#        pos -= 85
-#        return Color(255 - pos * 3, 0, pos * 3)
-#    else:
-#        pos -= 170
-#        return Color(0, pos * 3, 255 - pos * 3)
-
+# Create a moving rainbow
 def rainbow(strip, wait_ms=50, iterations=10):
 
     global gblBreak
@@ -122,7 +113,6 @@ def rainbow(strip, wait_ms=50, iterations=10):
 
         strip.show()
         time.sleep(wait_ms/1000.0)
-
 
 
 def rainbowCycle(strip, wait_ms=20, iterations=5):
@@ -165,11 +155,11 @@ def set_strip_color(strip, message):
     brightness = message[(first_comma_loc+1):(length)]
 
     for i in range(strip.numPixels()):
-        strip.setPixelColor(i, Color(ledclr[1], ledclr[0], ledclr[2]))
+        #strip.setPixelColor(i, Color(ledclr[1], ledclr[0], ledclr[2]))
+        strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2]))
 
-    strip.setBrightness(int(brightness))
+#    strip.setBrightness(int(brightness))
     strip.show()
-
 
 
 def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
@@ -178,13 +168,13 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
 
     for i in range(0, pixel_count-EyeSize-2):
         #strip.fill()         #setAll(0,0,0);
-        colorWipe(strip, 0, 0)
+        colorWipe(strip, Color(0,0,0), 0)
 
-        strip.setPixelColor(i, Color(red/10, green/10, blue/10))
+        strip.setPixelColor(i, Color(int(green/10), int(red/10), int(blue/10)))
         for j in range(0, EyeSize):
-            strip.setPixelColor(i+j, Color(red, green, blue))
+            strip.setPixelColor(i+j, Color(green, red, blue))
 
-        strip.setPixelColor(i+EyeSize, Color(red/10, green/10, blue/10))
+        strip.setPixelColor(i+EyeSize, Color(int(green/10), int(red/10), int(blue/10)))
         strip.show()
         time.sleep(SpeedDelay/1000)
 
@@ -193,13 +183,13 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
 
     for i in range(pixel_count-EyeSize-2, 0, -1):
 
-        colorWipe(strip, 0, 0)
+        colorWipe(strip, Color(0,0,0), 0)
 
-        strip.setPixelColor(i, Color(red/10, green/10, blue/10))
+        strip.setPixelColor(i, Color(int(green/10), int(red/10), int(blue/10)))
         for j in range(1, EyeSize):
-            strip.setPixelColor(i+j, Color(red, green, blue))
+            strip.setPixelColor(i+j, Color(green, red, blue))
 
-        strip.setPixelColor(i+EyeSize, Color(red/10, green/10, blue/10))
+        strip.setPixelColor(i+EyeSize, Color(int(green/10), int(red/10), int(blue/10)))
         strip.show()
         time.sleep(SpeedDelay/1000)
 
@@ -223,11 +213,11 @@ def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
     # light_increment - an True/False for each light so we know if we are getting brighter or dimmer
     # light_curr_life - Life counter for each light so we know how it's age (number of loops it has gone through)
     #
-    lights = random.sample(xrange(0, strip.numPixels()), numOfLights)   # Samples does not include duplicate values
+    lights = random.sample(range(0, strip.numPixels()), numOfLights)   # Samples does not include duplicate values
     light_increment = [True] * numOfLights
     light_curr_life = [0] * numOfLights
-    light_max_life = random.sample(xrange(10, 100), numOfLights)   # Life is in number of loops
-    light_brightness = random.sample(xrange(1, LEDMaxBright), numOfLights) # randomize maximum life (100 ms minimum)
+    light_max_life = random.sample(range(10, 100), numOfLights)   # Life is in number of loops
+    light_brightness = random.sample(range(1, LEDMaxBright), numOfLights)
     individual_light_color = [[random.random() for i in range(3)] for j in range(numOfLights)]
 
     #for loop in range(NumOfLoops):
@@ -258,14 +248,19 @@ def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
                 # if the light life is over, reset it
                 if light_curr_life[i] < 0:
 
-                    # The light's life is over, generate a new one.
+                    # We need to do this just in case there were fractions in the "life" calculation
+                    # that cause it to be left with a brightness of 1.
+                    strip.setPixelColor(lights[i], Color(0, 0, 0))
+
+                   # The light's life is over, generate a new one.
                     lights[i] = random.randint(0, strip.numPixels())
                     light_max_life[i] = random.randint(10, 100)
                     light_curr_life[i] = 0
                     light_increment[i] = True
 
-            # light_color = light_brightness[i]/(light_max_life[i]/2) * light_curr_life[i]
-            light_level = light_brightness[i]/(light_max_life[i]/2) * light_curr_life[i]
+            
+            # Light level must be an integer
+            light_level = int(light_brightness[i]/(light_max_life[i]/2) * light_curr_life[i])
 
             l1 = individual_light_color[i][0] 
             l2 = individual_light_color[i][1] 
@@ -304,9 +299,9 @@ def LED_strip_CallBack(client, userdata, message):
     gblBreak = False
 
     if topic == "strip":
-            set_strip_color(strip, message)
+        set_strip_color(strip, message)
     elif topic == "rainbow":
-            thread.start_new_thread( rainbow, (strip, ) )
+        _thread.start_new_thread( rainbow, (strip, ) )
             #rainbow(strip)
     elif topic == "theaterchase":
         theaterChase(strip, Color(127, 127, 127))
@@ -314,15 +309,15 @@ def LED_strip_CallBack(client, userdata, message):
         CylonBounce(strip, 0, 255, 0, 4, 20, 500)
     elif topic == "twinkle":
         Minutes = int(message)
-        thread.start_new_thread( Twinkle, (strip, 25, 255, Minutes, False))
+        _thread.start_new_thread( Twinkle, (strip, 10, 255, Minutes, False))
     elif topic == "ctwinkle":
         Minutes = int(message)
-        thread.start_new_thread( Twinkle, (strip, 25, 255, Minutes, True))
+        _thread.start_new_thread( Twinkle, (strip, 25, 255, Minutes, True))
     elif topic == "break":
         gblBreak = True
     elif topic == "exit":
         gblExit = True
-        print("Should exit")
+        print("Exiting program")
 
     gblBreak = False
 
@@ -361,6 +356,7 @@ if __name__ == '__main__':
     ourClient.loop_start()                       # Start the MQTT client
 #    ourClient.loop_forever()                       # Start the MQTT client
 
+    print("Ready!")
 
 # Main program loop
     while not gblExit:
