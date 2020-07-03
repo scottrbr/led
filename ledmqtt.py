@@ -278,6 +278,52 @@ def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
         strip.show()
 
 
+def red_white_blue(strip):
+
+    global gblBreak
+
+
+    Colors = []
+    for i in range(100):
+        Colors.append(Color(25,0,0))
+    for i in range(100):
+        Colors.append(Color(25,25,25))
+    for i in range(100):
+        Colors.append(Color(0,0,25))
+    for i in range(100):
+        Colors.append(Color(25,0,0))
+    for i in range(100):
+        Colors.append(Color(25,25,25))
+    for i in range(100):
+        Colors.append(Color(0,0,25))
+
+
+    # Initial the strip to turn off all lights but set the brightness to maximum
+    set_strip_color(strip, "000000,25")
+
+    start = 0
+    set_strip_color(strip, "000000,25")
+ 
+    while (1):
+
+        # Do red
+        for i in range(LED_COUNT):
+
+            # Exit if we are being asked to
+            if gblBreak:
+                gblBreak = False
+                return
+
+            strip.setPixelColor(i, Colors[i+start])
+
+        strip.show()
+        time.sleep(0.01)
+        start += 1
+        if start == LED_COUNT:
+            start = 0
+
+ 
+
 # Our "on message" event
 #
 # Be careful about using the strip variable here. It is a global variable
@@ -302,7 +348,6 @@ def LED_strip_CallBack(client, userdata, message):
         set_strip_color(strip, message)
     elif topic == "rainbow":
         _thread.start_new_thread( rainbow, (strip, ) )
-            #rainbow(strip)
     elif topic == "theaterchase":
         theaterChase(strip, Color(127, 127, 127))
     elif topic == "cylon":
@@ -313,6 +358,8 @@ def LED_strip_CallBack(client, userdata, message):
     elif topic == "ctwinkle":
         Minutes = int(message)
         _thread.start_new_thread( Twinkle, (strip, 25, 255, Minutes, True))
+    elif topic == "rwb":
+        _thread.start_new_thread( red_white_blue, (strip, ) )
     elif topic == "break":
         gblBreak = True
     elif topic == "exit":
@@ -342,19 +389,20 @@ if __name__ == '__main__':
     #
     # Setup MWTT Broker
     #
-    ourClient = mqtt.Client("makerio_mqtt")      # Create a MQTT client object
-    ourClient.connect("192.168.1.202", 1883)     # Connect to the test MQTT broker
-    ourClient.subscribe("strip")                 # Subscribe to the topic
-    ourClient.subscribe("rainbow")               # Subscribe to the topic
-    ourClient.subscribe("theaterchase")          # Subscribe to the topic
-    ourClient.subscribe("cylon")                 # Subscribe to the topic
-    ourClient.subscribe("twinkle")               # Subscribe to the topic
-    ourClient.subscribe("ctwinkle")               # Subscribe to the topic
-    ourClient.subscribe("break")                 # Subscribe to the topic
-    ourClient.subscribe("exit")                  # Subscribe to the topic
-    ourClient.on_message = LED_strip_CallBack    # Attach the messageFunction to subscription
-    ourClient.loop_start()                       # Start the MQTT client
-#    ourClient.loop_forever()                       # Start the MQTT client
+    ourClient = mqtt.Client("makerio_mqtt")     # Create a MQTT client object
+    ourClient.connect("192.168.1.202", 1883)    # Connect to the test MQTT broker
+    ourClient.subscribe("strip")                # Subscribe to the topic
+    ourClient.subscribe("rainbow")              # Subscribe to the topic
+    ourClient.subscribe("theaterchase")         # Subscribe to the topic
+    ourClient.subscribe("cylon")                # Subscribe to the topic
+    ourClient.subscribe("twinkle")              # Subscribe to the topic
+    ourClient.subscribe("ctwinkle")             # Subscribe to the topic
+    ourClient.subscribe("rwb")                  # Subscribe to the topic
+    ourClient.subscribe("break")                # Subscribe to the topic
+    ourClient.subscribe("exit")                 # Subscribe to the topic
+    ourClient.on_message = LED_strip_CallBack   # Attach the messageFunction to subscription
+    ourClient.loop_start()                      # Start the MQTT client
+#    ourClient.loop_forever()                   # Start the MQTT client
 
     print("Ready!")
 
