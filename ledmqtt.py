@@ -101,6 +101,8 @@ def rainbow(strip, wait_ms=50, iterations=10):
 
     global gblBreak
 
+    strip.setBrightness(30)
+ 
     """Draw rainbow that fades across all pixels at once."""
     for j in range(256*iterations):
         for i in range(strip.numPixels()):
@@ -158,7 +160,12 @@ def set_strip_color(strip, message):
         #strip.setPixelColor(i, Color(ledclr[1], ledclr[0], ledclr[2]))
         strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2]))
 
-#    strip.setBrightness(int(brightness))
+    # *************** I am limiting the brighntess here ***************
+    brightness_int = int(brightness)
+    if brightness_int > 30:
+        brightness_int = 30
+
+    strip.setBrightness(brightness_int)
     strip.show()
 
 
@@ -204,7 +211,7 @@ def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
     global gblBreak
 
     # Initial the strip to turn off all lights but set the brightness to maximum
-    set_strip_color(strip, "000000,255")
+    set_strip_color(strip, "000000,30")
     start_time = time.time()
 
     #
@@ -283,26 +290,27 @@ def red_white_blue(strip):
     global gblBreak
 
 
+    level = 30
+
     Colors = []
     for i in range(100):
-        Colors.append(Color(25,0,0))
+        Colors.append(Color(level,0,0))
     for i in range(100):
-        Colors.append(Color(25,25,25))
+        Colors.append(Color(level,level,level))
     for i in range(100):
-        Colors.append(Color(0,0,25))
+        Colors.append(Color(0,0,level))
     for i in range(100):
-        Colors.append(Color(25,0,0))
+        Colors.append(Color(level,0,0))
     for i in range(100):
-        Colors.append(Color(25,25,25))
+        Colors.append(Color(level,level,level))
     for i in range(100):
-        Colors.append(Color(0,0,25))
+        Colors.append(Color(0,0,level))
 
 
     # Initial the strip to turn off all lights but set the brightness to maximum
-    set_strip_color(strip, "000000,25")
 
     start = 0
-    set_strip_color(strip, "000000,25")
+    set_strip_color(strip, "000000,30")
  
     while (1):
 
@@ -389,7 +397,7 @@ if __name__ == '__main__':
     #
     # Setup MWTT Broker
     #
-    ourClient = mqtt.Client("makerio_mqtt")     # Create a MQTT client object
+    ourClient = mqtt.Client("strip_03Jul")     # Create a MQTT client object
     ourClient.connect("192.168.1.202", 1883)    # Connect to the test MQTT broker
     ourClient.subscribe("strip")                # Subscribe to the topic
     ourClient.subscribe("rainbow")              # Subscribe to the topic
