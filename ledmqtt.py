@@ -28,8 +28,8 @@
 import sys
 import random
 import time
+import socket       # For getting the computer name
 import _thread
-#from neopixel import *
 from rpi_ws281x import *
 import paho.mqtt.client as mqtt  # Import the MQTT library
 
@@ -127,7 +127,7 @@ def rainbowCycle(strip, wait_ms=20, iterations=5):
 
 
 def theaterChaseRainbow(strip, wait_ms=50):
-    """Rainbow movie theater light stJosh has setup a call for April 20th with the group in Livingston to discuss.yle chaser animation."""
+    """Rainbow movie theater light style chaser animation."""
     for j in range(256):
         for q in range(3):
             for i in range(0, strip.numPixels(), 3):
@@ -186,7 +186,6 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
         time.sleep(SpeedDelay/1000)
 
     time.sleep(ReturnDelay/1000)
-
 
     for i in range(pixel_count-EyeSize-2, 0, -1):
 
@@ -331,6 +330,72 @@ def red_white_blue(strip):
             start = 0
 
  
+def candle_start(strip, season_color):
+
+    global gblBreak
+
+    if int(season_color) == 1:
+        XMAS_time = False
+    else:
+        XMAS_time = True
+
+    while not gblBreak:
+        wait = random.randint(100, 120)             # set a random wait period
+        randpix = 4     # random(0, numpix + 1);    //choose a random number of pixels
+        numpix = 4
+        color = random.randint(0, 1)                # ; //Pick either yellow or orange
+                                    # so it leaves a certain number of yellow pixels on (number of pixels/3)
+        for i in range (int(numpix)):
+            if not XMAS_time:
+                strip.setPixelColor(i, Color(255, 120, 0))  # set the number of pixels to turn on and color value (yellowish)
+            else:
+                strip.setPixelColor(i, Color(255, 10, 0))  # set the number of pixels to turn on and color value (yellowish)
+
+        strip.show();   # turn pixels on
+        strip.setBrightness(random.randint(5, 40))
+
+        if color == 0:      # if red was chosen
+            if not XMAS_time:
+                flickred(strip, Color(215, 50, 0), wait, randpix)   # call flickred and pass it the red (orangeish)
+            else:
+                flickred(strip, Color(255, 0, 0), wait, randpix)   # call flickred and pass it the red (orangeish)
+                                                            # color values - change values to change color
+        else:               # otherwise use yellow
+            if not XMAS_time:
+                flickYellow(strip, Color(180, 80, 0), wait, randpix)  # call flickYellow and pass it the yellow color
+            else:
+                flickYellow(strip, Color(18, 180, 0), wait, randpix)  # call flickYellow and pass it the yellow color
+                                                              # values (change values to change color), and
+                                                              # wait time and random pixel count
+
+# Function for when red is chosen
+def flickred(strip, c, wait, p):
+
+    for i in range(p - 2):  # loop for given random pixel count (passed from loop)
+        strip.setPixelColor(i, c)
+
+    strip.show();  # turn pixels on
+
+    time.sleep(wait/1000)
+
+    for i in range(p):
+        strip.setPixelColor(i, 0)        # turn pixel off
+
+
+
+# function for when yellow is chosen
+def flickYellow(strip, c, wait, p):
+
+    for i in range(p):          # loop for given random pixel count (passed from loop)
+        strip.setPixelColor(i, c)
+                                                                                
+    strip.show()    # turn pixels on
+
+    time.sleep(wait/1000)
+
+    for i in range(p):
+        strip.setPixelColor(i, 0)       # turn pixel off
+
 
 # Our "on message" event
 #
@@ -342,39 +407,49 @@ def LED_strip_CallBack(client, userdata, message):
     global gblExit
 
     topic = str(message.topic)
+    host_name = socket.gethostname()
 
     message = str(message.payload.decode("utf-8"))
-    print(message)
-    print(topic)
+    print("Message: ", message)
+    print("Topic: ", topic)
 
     # Stop any currently running routines
     gblBreak = True
     time.sleep(0.5)  # Wait 1/2 second for routines to stop
     gblBreak = False
 
-    if topic == "strip":
-        set_strip_color(strip, message)
-    elif topic == "rainbow":
-        _thread.start_new_thread( rainbow, (strip, ) )
-    elif topic == "theaterchase":
-        theaterChase(strip, Color(127, 127, 127))
-    elif topic == "cylon":
-        CylonBounce(strip, 0, 255, 0, 4, 20, 500)
-    elif topic == "twinkle":
-        Minutes = int(message)
-        _thread.start_new_thread( Twinkle, (strip, 10, 255, Minutes, False))
-    elif topic == "ctwinkle":
-        Minutes = int(message)
-        _thread.start_new_thread( Twinkle, (strip, 25, 255, Minutes, True))
-    elif topic == "rwb":
-        _thread.start_new_thread( red_white_blue, (strip, ) )
-    elif topic == "break":
-        gblBreak = True
-    elif topic == "exit":
-        gblExit = True
-        print("Exiting program")
+    if host_name.find("strip") > -1:    # LED strip specific instructions
+        if topic == "on_" + host_name:
+            set_strip_color(strip, message)
+        elif topic == "rainbow_" + host_name:
+            _thread.start_new_thread( rainbow, (strip, ) )
+        elif topic == "theaterchase_" + host_name:
+            theaterChase(strip, Color(127, 127, 127))
+        elif topic == "cylon_" + host_name:
+            CylonBounce(strip, 0, 255, 0, 4, 20, 500)
+        elif topic == "twinkle_" + host_name:
+            Minutes = int(message)
+            _thread.start_new_thread( Twinkle, (strip, 10, 255, Minutes, False))
+        elif topic == "ctwinkle_" + host_name:
+            Minutes = int(message)
+            _thread.start_new_thread( Twinkle, (strip, 25, 255, Minutes, True))
+        elif topic == "rwb_" + host_name:
+            _thread.start_new_thread( red_white_blue, (strip, ) )
+    else:   # Candle specific functions
+        if topic == "on_" + host_name:
+            print("Turn on: ", host_name)
+            _thread.start_new_thread( candle_start, (strip, message) )
 
-    gblBreak = False
+    if topic == "off_" + host_name:
+        set_strip_color(strip, "000000,30")
+        gblBreak = True
+    elif topic == "exit_" + host_name:
+         gblExit = True
+         print("Exit command for " + host_name + " program")
+    elif topic == "break_" + host_name:
+        gblBreak = True
+    
+#    gblBreak = False
 
 
 # Main program logic follows:
@@ -383,7 +458,7 @@ if __name__ == '__main__':
     global gblBreak
     global gblExit
 
-    time.sleep(10)
+#    time.sleep(10)
 
     gblBreak = False
     gblExit = False
@@ -394,20 +469,27 @@ if __name__ == '__main__':
     # Initialize the library (must be called once before other functions).
     strip.begin()
 
+    host_name = socket.gethostname()
+    start_topic = host_name
+    print("Starting up as:", host_name)
+
     #
     # Setup MWTT Broker
     #
-    ourClient = mqtt.Client("strip_03Jul")     # Create a MQTT client object
+    ourClient = mqtt.Client(socket.gethostname())      # Create a MQTT client object
     ourClient.connect("192.168.1.202", 1883)    # Connect to the test MQTT broker
-    ourClient.subscribe("strip")                # Subscribe to the topic
-    ourClient.subscribe("rainbow")              # Subscribe to the topic
-    ourClient.subscribe("theaterchase")         # Subscribe to the topic
-    ourClient.subscribe("cylon")                # Subscribe to the topic
-    ourClient.subscribe("twinkle")              # Subscribe to the topic
-    ourClient.subscribe("ctwinkle")             # Subscribe to the topic
-    ourClient.subscribe("rwb")                  # Subscribe to the topic
-    ourClient.subscribe("break")                # Subscribe to the topic
-    ourClient.subscribe("exit")                 # Subscribe to the topic
+
+    ourClient.subscribe("rainbow_" + host_name)              # Subscribe to the topic
+    ourClient.subscribe("theaterchase_" + host_name)         # Subscribe to the topic
+    ourClient.subscribe("cylon_" + host_name)                # Subscribe to the topic
+    ourClient.subscribe("twinkle_" + host_name)              # Subscribe to the topic
+    ourClient.subscribe("ctwinkle_" + host_name)             # Subscribe to the topic
+    ourClient.subscribe("rwb_" + host_name)                  # Subscribe to the topic
+
+    ourClient.subscribe("on_" + host_name)          # Subscribe to the topic
+    ourClient.subscribe("off_" + host_name)          # Subscribe to the topic
+    ourClient.subscribe("break_" + host_name)                # Subscribe to the topic
+    ourClient.subscribe("exit_" + host_name)          # Subscribe to the topic
     ourClient.on_message = LED_strip_CallBack   # Attach the messageFunction to subscription
     ourClient.loop_start()                      # Start the MQTT client
 #    ourClient.loop_forever()                   # Start the MQTT client
@@ -416,12 +498,7 @@ if __name__ == '__main__':
 
 # Main program loop
     while not gblExit:
-        #ourClient.publish("AC_unit", "on")  # Publish message to MQTT broker
-        time.sleep(1)  # Sleep for a second
-
-
-
-
-
+        time.sleep(1)  # Sleep for a secondi
+ 
 
 
