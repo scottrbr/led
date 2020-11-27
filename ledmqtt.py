@@ -43,6 +43,24 @@ LED_BRIGHTNESS = 255     # Set to 0 for darkest and 255 for brightest
 LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
+#
+# Not all of my devices have the same number of LEDs and I want this code to
+# run in all of them so I need to make this dynamic based on the name of the
+# device.
+#
+def get_led_count():
+
+    led_count = 100
+    host_name = socket.gethostname()
+
+    if host_name == "strip1":
+        led_count = 300
+    elif host_name == "raspberrypi4":
+        led_count = 300
+    elif host_name == candle1:
+        led_count = 4
+
+    return led_count
 
 
 # Define functions which animate LEDs in various ways.
@@ -137,6 +155,32 @@ def theaterChaseRainbow(strip, wait_ms=50):
             for i in range(0, strip.numPixels(), 3):
                 strip.setPixelColor(i+q, 0)
 
+#
+# A Christmas color theme variation on the normal theatre chase routin.
+#
+def XMAS_theater_chase(strip, wait_ms=100):
+
+    global gblBreak
+    global gblExit
+
+    strip.setBrightness(30)
+
+    # Movie theater light style chaser animation
+    while not gblBreak and not gblExit:
+        for q in range(6):
+            for i in range(0, strip.numPixels(), 6):
+                strip.setPixelColor(i+q, Color(255, 0, 0))
+                strip.setPixelColor(i+q+1, Color(255, 0, 0))
+                strip.setPixelColor(i+q+2, Color(255, 0, 0))
+                if gblBreak or gblExit:
+                    break
+            strip.show()
+            time.sleep(wait_ms/1000.0)
+            for i in range(0, strip.numPixels(), 6):
+                strip.setPixelColor(i+q, Color(0, 255, 0))
+                if gblBreak or gblExit:
+                    break
+ 
 
 def hex_to_rgb(value):
     value = value.lstrip('#')
@@ -210,7 +254,7 @@ def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
     global gblBreak
 
     # Initial the strip to turn off all lights but set the brightness to maximum
-    set_strip_color(strip, "000000,30")
+    set_strip_color(strip, "000000,40")
     start_time = time.time()
 
     #
@@ -314,7 +358,7 @@ def red_white_blue(strip):
     while (1):
 
         # Do red
-        for i in range(LED_COUNT):
+        for i in range(strip.numPixels()):
 
             # Exit if we are being asked to
             if gblBreak:
@@ -326,7 +370,7 @@ def red_white_blue(strip):
         strip.show()
         time.sleep(0.01)
         start += 1
-        if start == LED_COUNT:
+        if start == strip.numPixels():
             start = 0
 
  
@@ -338,7 +382,6 @@ def candle_start(strip, season_color):
         XMAS_time = False
     else:
         XMAS_time = True
-
     while not gblBreak:
         wait = random.randint(100, 120)             # set a random wait period
         randpix = 4     # random(0, numpix + 1);    //choose a random number of pixels
@@ -418,7 +461,7 @@ def LED_strip_CallBack(client, userdata, message):
     time.sleep(0.5)  # Wait 1/2 second for routines to stop
     gblBreak = False
 
-    if host_name.find("strip") > -1:    # LED strip specific instructions
+    if host_name.find("strip") > -1 or host_name.find("raspberrypi4") > -1:    # LED strip specific instructions
         if topic == "on_" + host_name:
             set_strip_color(strip, message)
         elif topic == "rainbow_" + host_name:
@@ -435,6 +478,9 @@ def LED_strip_CallBack(client, userdata, message):
             _thread.start_new_thread( Twinkle, (strip, 25, 255, Minutes, True))
         elif topic == "rwb_" + host_name:
             _thread.start_new_thread( red_white_blue, (strip, ) )
+        elif topic == "xmas_" + host_name:
+            print("start xmas strip show")
+            _thread.start_new_thread( XMAS_theater_chase, (strip, ) )
     else:   # Candle specific functions
         if topic == "on_" + host_name:
             print("Turn on: ", host_name)
@@ -458,13 +504,17 @@ if __name__ == '__main__':
     global gblBreak
     global gblExit
 
-#    time.sleep(10)
+    # If there is only one command line argument,then run as normal (no testing)
+    if len(sys.argv) == 1:
+        time.sleep(10)
+    else:
+        print("Testing")
 
     gblBreak = False
     gblExit = False
 
     # Create NeoPixel object with appropriate configuration.
-    strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
+    strip = Adafruit_NeoPixel(get_led_count(), LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
 
     # Initialize the library (must be called once before other functions).
     strip.begin()
@@ -485,6 +535,7 @@ if __name__ == '__main__':
     ourClient.subscribe("twinkle_" + host_name)              # Subscribe to the topic
     ourClient.subscribe("ctwinkle_" + host_name)             # Subscribe to the topic
     ourClient.subscribe("rwb_" + host_name)                  # Subscribe to the topic
+    ourClient.subscribe("xmas_" + host_name)                  # Subscribe to the topic
 
     ourClient.subscribe("on_" + host_name)          # Subscribe to the topic
     ourClient.subscribe("off_" + host_name)          # Subscribe to the topic
@@ -492,13 +543,17 @@ if __name__ == '__main__':
     ourClient.subscribe("exit_" + host_name)          # Subscribe to the topic
     ourClient.on_message = LED_strip_CallBack   # Attach the messageFunction to subscription
     ourClient.loop_start()                      # Start the MQTT client
-#    ourClient.loop_forever()                   # Start the MQTT client
+    # ourClient.loop_forever()                   # Start the MQTT client
 
+    print("LED count is: ", get_led_count())
     print("Ready!")
+
+    if len(sys.argv) > 1:
+        XMAS_theater_chase(strip)
 
 # Main program loop
     while not gblExit:
-        time.sleep(1)  # Sleep for a secondi
+        time.sleep(1)  # Sleep for a second
  
 
 
