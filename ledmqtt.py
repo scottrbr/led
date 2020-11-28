@@ -35,13 +35,15 @@ import paho.mqtt.client as mqtt  # Import the MQTT library
 
 
 # LED strip configuration:
-LED_COUNT      = 300      # Number of LED pixels.
-LED_PIN        = 18      # GPIO pin connected to the pixels (18 uses PWM!).
-LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
-LED_DMA        = 10      # DMA channel to use for generating signal (try 10)
-LED_BRIGHTNESS = 255     # Set to 0 for darkest and 255 for brightest
-LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
-LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
+#LED_COUNT      = 300       # Number of LED pixels. This is commented because 
+                            # a function should determine this based on the
+                            # device.
+LED_PIN        = 18     # GPIO pin connected to the pixels (18 uses PWM!).
+LED_FREQ_HZ    = 800000 # LED signal frequency in hertz (usually 800khz)
+LED_DMA        = 10     # DMA channel to use for generating signal (try 10)
+LED_BRIGHTNESS = 255    # Set to 0 for darkest and 255 for brightest
+LED_INVERT     = False  # True to invert the signal (when using NPN transistor level shift)
+LED_CHANNEL    = 0      # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
 #
 # Not all of my devices have the same number of LEDs and I want this code to
@@ -57,31 +59,31 @@ def get_led_count():
         led_count = 300
     elif host_name == "raspberrypi4":
         led_count = 300
-    elif host_name == candle1:
+    elif host_name == "candle1":
         led_count = 4
 
     return led_count
 
 
 # Define functions which animate LEDs in various ways.
-def glow(strip, color, wait_ms=50):
-    """Wipe color across display a pixel at a time."""
+#def glow(strip, color, wait_ms=50):
+#    """Wipe color across display a pixel at a time."""
 
-    pixelcount = strip.numPixels();
-    for bri in range(0,255):
-        for i in range(strip.numPixels()):
-            strip.setPixelColor(pixelcount-i, color)
-            strip.setBrightness(bri)
-        strip.show()
-        time.sleep(0.01)
+#    pixelcount = strip.numPixels();
+#    for bri in range(0,255):
+#        for i in range(strip.numPixels()):
+#            strip.setPixelColor(pixelcount-i, color)
+#            strip.setBrightness(bri)
+#        strip.show()
+#        time.sleep(0.01)
 
 
-    for bri in range(255,0, -1):
-        for i in range(strip.numPixels()):
-            strip.setPixelColor(pixelcount-i, color)
-            strip.setBrightness(bri)
-        strip.show()
-        time.sleep(0.01)
+#    for bri in range(255,0, -1):
+#        for i in range(strip.numPixels()):
+#            strip.setPixelColor(pixelcount-i, color)
+#            strip.setBrightness(bri)
+#        strip.show()
+#        time.sleep(0.01)
 
 
 def colorWipe(strip, color, wait_ms=50):
@@ -90,7 +92,7 @@ def colorWipe(strip, color, wait_ms=50):
         strip.setPixelColor(i, color)
 
     strip.show()
-#    time.sleep(wait_ms/1000.0)
+
 
 def theaterChase(strip, color, wait_ms=50, iterations=10):
     """Movie theater light style chaser animation."""
@@ -215,6 +217,9 @@ def set_strip_color(strip, message):
 
 def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
 
+    global gblBreak
+    global gblExit
+
     pixel_count = strip.numPixels()
 
     for i in range(0, pixel_count-EyeSize-2):
@@ -228,6 +233,9 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
         strip.setPixelColor(i+EyeSize, Color(int(green/10), int(red/10), int(blue/10)))
         strip.show()
         time.sleep(SpeedDelay/1000)
+
+        if gblBreak or gblExit:
+            break
 
     time.sleep(ReturnDelay/1000)
 
@@ -243,16 +251,20 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
         strip.show()
         time.sleep(SpeedDelay/1000)
 
+        if gblBreak or gblExit:
+            break
+
     time.sleep(ReturnDelay/1000)
 
 
 #
-# There is a known issue that when I get a new randome led, I do not check if it is a duplicate 
+# There is a known issue that when I get a new randome led, I do not check if
+# it is a duplicate. This create some strange blinking on that LED.
 #
 def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
 
     global gblBreak
-
+    print("Twinkle")
     # Initial the strip to turn off all lights but set the brightness to maximum
     set_strip_color(strip, "000000,40")
     start_time = time.time()
@@ -328,12 +340,15 @@ def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
         strip.show()
 
 
+#
+# This function displays 100 pixel long red, white, and blue moving bands
+# down the LEd strip
+#
 def red_white_blue(strip):
 
     global gblBreak
 
-
-    level = 30
+    level = 60
 
     Colors = []
     for i in range(100):
@@ -373,7 +388,11 @@ def red_white_blue(strip):
         if start == strip.numPixels():
             start = 0
 
- 
+#############################################################################
+#                           CANDLE SPECIFIC FUNCTIONS                       #
+#############################################################################
+
+# This is the main candle operation fucntion
 def candle_start(strip, season_color):
 
     global gblBreak
@@ -401,17 +420,15 @@ def candle_start(strip, season_color):
             if not XMAS_time:
                 flickred(strip, Color(215, 50, 0), wait, randpix)   # call flickred and pass it the red (orangeish)
             else:
-                flickred(strip, Color(255, 0, 0), wait, randpix)   # call flickred and pass it the red (orangeish)
-                                                            # color values - change values to change color
+                flickred(strip, Color(255, 0, 0), wait, randpix)   # call flickred and pass it the XMAS red color
         else:               # otherwise use yellow
             if not XMAS_time:
                 flickYellow(strip, Color(180, 80, 0), wait, randpix)  # call flickYellow and pass it the yellow color
             else:
-                flickYellow(strip, Color(18, 180, 0), wait, randpix)  # call flickYellow and pass it the yellow color
-                                                              # values (change values to change color), and
-                                                              # wait time and random pixel count
+                flickYellow(strip, Color(18, 180, 0), wait, randpix)  # call flickYellow and pass it the XMAS green color
 
-# Function for when red is chosen
+
+# Candle function for when red is chosen
 def flickred(strip, c, wait, p):
 
     for i in range(p - 2):  # loop for given random pixel count (passed from loop)
@@ -426,7 +443,7 @@ def flickred(strip, c, wait, p):
 
 
 
-# function for when yellow is chosen
+# Candle function for when yellow is chosen
 def flickYellow(strip, c, wait, p):
 
     for i in range(p):          # loop for given random pixel count (passed from loop)
@@ -442,18 +459,19 @@ def flickYellow(strip, c, wait, p):
 
 # Our "on message" event
 #
-# Be careful about using the strip variable here. It is a global variable
+# Be careful about using the strip variable here. It is a global variable.
 #
 def LED_strip_CallBack(client, userdata, message):
 
     global gblBreak
     global gblExit
+    global gblStrip
 
     topic = str(message.topic)
     host_name = socket.gethostname()
 
     message = str(message.payload.decode("utf-8"))
-    print("Message: ", message)
+    print("Message::", message)
     print("Topic: ", topic)
 
     # Stop any currently running routines
@@ -461,33 +479,37 @@ def LED_strip_CallBack(client, userdata, message):
     time.sleep(0.5)  # Wait 1/2 second for routines to stop
     gblBreak = False
 
+    # LED strip specific functions here
     if host_name.find("strip") > -1 or host_name.find("raspberrypi4") > -1:    # LED strip specific instructions
         if topic == "on_" + host_name:
-            set_strip_color(strip, message)
-        elif topic == "rainbow_" + host_name:
-            _thread.start_new_thread( rainbow, (strip, ) )
-        elif topic == "theaterchase_" + host_name:
-            theaterChase(strip, Color(127, 127, 127))
-        elif topic == "cylon_" + host_name:
-            CylonBounce(strip, 0, 255, 0, 4, 20, 500)
-        elif topic == "twinkle_" + host_name:
-            Minutes = int(message)
-            _thread.start_new_thread( Twinkle, (strip, 10, 255, Minutes, False))
-        elif topic == "ctwinkle_" + host_name:
-            Minutes = int(message)
-            _thread.start_new_thread( Twinkle, (strip, 25, 255, Minutes, True))
-        elif topic == "rwb_" + host_name:
-            _thread.start_new_thread( red_white_blue, (strip, ) )
-        elif topic == "xmas_" + host_name:
-            print("start xmas strip show")
-            _thread.start_new_thread( XMAS_theater_chase, (strip, ) )
-    else:   # Candle specific functions
+            set_strip_color(gblStrip, message)
+        elif topic == "strip_pattern_" + host_name:
+            if message == "rainbow":
+                _thread.start_new_thread( rainbow, (gblStrip, ) )
+            elif message == "theaterchase":
+                theaterChase(gblStrip, Color(127, 127, 127))
+            elif message == "cylon":
+                _thread.start_new_thread( CylonBounce, (gblStrip, 0, 255, 0, 4, 20, 500))
+            elif message == "twinkle":
+                Minutes = 180
+                _thread.start_new_thread( Twinkle, (gblStrip, 10, 255, Minutes, False))
+            elif message == "ctwinkle":
+                Minutes = 180
+                _thread.start_new_thread( Twinkle, (gblStrip, 25, 255, Minutes, True))
+            elif message == "rwb":
+                _thread.start_new_thread( red_white_blue, (gblStrip, ) )
+            elif message == "xmas":
+                _thread.start_new_thread( XMAS_theater_chase, (gblStrip, ) )
+
+    # Put candle specific handlers here
+    if host_name.find("candle") > -1:   # Candle specific functions
         if topic == "on_" + host_name:
             print("Turn on: ", host_name)
-            _thread.start_new_thread( candle_start, (strip, message) )
+            _thread.start_new_thread( candle_start, (gblStrip, message) )
 
+    # These are generic across all devices
     if topic == "off_" + host_name:
-        set_strip_color(strip, "000000,30")
+        set_strip_color(gblStrip, "000000,30")
         gblBreak = True
     elif topic == "exit_" + host_name:
          gblExit = True
@@ -503,22 +525,28 @@ if __name__ == '__main__':
 
     global gblBreak
     global gblExit
+    global gblStrip
 
     # If there is only one command line argument,then run as normal (no testing)
+    # When I testing I do not need to wait the 10 seconds
     if len(sys.argv) == 1:
+        # We need to wait 10 seconds here because this code with run at
+        # device startup and there is a race condition on getting the MQTT
+        # services started before this code trys to access them.
         time.sleep(10)
     else:
-        print("Testing")
+        print("Testing")    # Feedback to terminal if we are testing
 
     gblBreak = False
     gblExit = False
 
     # Create NeoPixel object with appropriate configuration.
-    strip = Adafruit_NeoPixel(get_led_count(), LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
+    gblStrip = Adafruit_NeoPixel(get_led_count(), LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
 
     # Initialize the library (must be called once before other functions).
-    strip.begin()
+    gblStrip.begin()
 
+    # Show the device name when starting (incase we are watching in terminal)
     host_name = socket.gethostname()
     start_topic = host_name
     print("Starting up as:", host_name)
@@ -526,34 +554,29 @@ if __name__ == '__main__':
     #
     # Setup MWTT Broker
     #
-    ourClient = mqtt.Client(socket.gethostname())      # Create a MQTT client object
-    ourClient.connect("192.168.1.202", 1883)    # Connect to the test MQTT broker
+    ourClient = mqtt.Client(socket.gethostname())       # Create a MQTT client object
+    ourClient.connect("192.168.1.202", 1883)            # Connect to the test MQTT broker
 
-    ourClient.subscribe("rainbow_" + host_name)              # Subscribe to the topic
-    ourClient.subscribe("theaterchase_" + host_name)         # Subscribe to the topic
-    ourClient.subscribe("cylon_" + host_name)                # Subscribe to the topic
-    ourClient.subscribe("twinkle_" + host_name)              # Subscribe to the topic
-    ourClient.subscribe("ctwinkle_" + host_name)             # Subscribe to the topic
-    ourClient.subscribe("rwb_" + host_name)                  # Subscribe to the topic
-    ourClient.subscribe("xmas_" + host_name)                  # Subscribe to the topic
+    # LED strip specific topics
+    ourClient.subscribe("strip_pattern_" + host_name)
 
-    ourClient.subscribe("on_" + host_name)          # Subscribe to the topic
-    ourClient.subscribe("off_" + host_name)          # Subscribe to the topic
-    ourClient.subscribe("break_" + host_name)                # Subscribe to the topic
-    ourClient.subscribe("exit_" + host_name)          # Subscribe to the topic
+    # These are generic topics across all devices
+    ourClient.subscribe("on_" + host_name)
+    ourClient.subscribe("off_" + host_name)
+    ourClient.subscribe("break_" + host_name)
+    ourClient.subscribe("exit_" + host_name)
     ourClient.on_message = LED_strip_CallBack   # Attach the messageFunction to subscription
     ourClient.loop_start()                      # Start the MQTT client
-    # ourClient.loop_forever()                   # Start the MQTT client
 
-    print("LED count is: ", get_led_count())
+    print("LED count is: ", gblStrip.numPixels())
     print("Ready!")
 
-    if len(sys.argv) > 1:
-        XMAS_theater_chase(strip)
+    # Put test code here when needed.
+    #if len(sys.argv) > 1:
+    #    XMAS_theater_chase(strip)
 
 # Main program loop
     while not gblExit:
         time.sleep(1)  # Sleep for a second
  
-
 
