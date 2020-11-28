@@ -392,7 +392,7 @@ def red_white_blue(strip):
 #                           CANDLE SPECIFIC FUNCTIONS                       #
 #############################################################################
 
-# This is the main candle operation fucntion
+# This is the main candle operation function
 def candle_start(strip, season_color):
 
     global gblBreak
@@ -403,10 +403,11 @@ def candle_start(strip, season_color):
         XMAS_time = True
     while not gblBreak:
         wait = random.randint(100, 120)             # set a random wait period
-        randpix = 4     # random(0, numpix + 1);    //choose a random number of pixels
-        numpix = 4
-        color = random.randint(0, 1)                # ; //Pick either yellow or orange
-                                    # so it leaves a certain number of yellow pixels on (number of pixels/3)
+        randpix = strip.numPixels() #4     # random(0, numpix + 1);    //choose a random number of pixels
+        numpix = strip.numPixels()  #4
+        color = random.randint(0, 1)        # Pick either yellow or orange
+                                            # so it leaves a certain number of
+                                            # yellow pixels on (number of pixels/3)
         for i in range (int(numpix)):
             if not XMAS_time:
                 strip.setPixelColor(i, Color(255, 120, 0))  # set the number of pixels to turn on and color value (yellowish)
@@ -476,7 +477,7 @@ def LED_strip_CallBack(client, userdata, message):
 
     # Stop any currently running routines
     gblBreak = True
-    time.sleep(0.5)  # Wait 1/2 second for routines to stop
+    time.sleep(0.5)  # Wait 1/2 second for other routines to stop (just in case)
     gblBreak = False
 
     # LED strip specific functions here
