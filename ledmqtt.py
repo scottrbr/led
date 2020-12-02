@@ -475,6 +475,10 @@ def LED_strip_CallBack(client, userdata, message):
     print("Message::", message)
     print("Topic: ", topic)
 
+    # if we find undefined in the message, something went wrong so exit
+    if message.find("undefined") > -1:
+        return
+
     # Stop any currently running routines
     gblBreak = True
     time.sleep(0.5)  # Wait 1/2 second for other routines to stop (just in case)
