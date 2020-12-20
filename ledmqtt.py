@@ -63,7 +63,7 @@ def get_led_count():
     led_count = 100
     host_name = socket.gethostname()
 
-    if host_name == "strip1":
+    if host_name == "strip01":
         led_count = 300
     elif host_name == "raspberrypi4":
         led_count = 300
