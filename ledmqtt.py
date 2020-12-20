@@ -67,7 +67,7 @@ def get_led_count():
         led_count = 300
     elif host_name == "raspberrypi4":
         led_count = 300
-    elif host_name == "candle1":
+    elif host_name == "candle01":
         led_count = 4
 
     return led_count
