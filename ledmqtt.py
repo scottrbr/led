@@ -4,26 +4,17 @@
 #
 # Direct port of the Arduino NeoPixel library strandtest example.  Showcases
 # various animations on a strip of NeoPixels.
-
 #
-# Some of the he neopixle library has these functions
-# https://adafruit.github.io/Adafruit_NeoPixel/html/class_adafruit___neo_pixel.html
+# Command line options:
+#   WS2811B : Runs in normal strip mode assuming a WS2811B strip (RGB).
+#   TEST    : Test mode - skips waiting step for MQTT server.
+#   SK6812W : Runs in normal strip mode assuming a SK6812W strip (RGBW).
+WS2811B   = "WS2811B"
+SK6812W   = "SK6812W"
 #
-# begin()
-# updateLength()
-# updateType()
-# show()
-# delay_ns()
-# setPin()
-# setPixelColor()
-# fill()
-# ColorHSV()
-# getPixelColor()
-# setBrightness()
-# getBrightness()
-# clear()
-# gamma32()
-
+# The general library can found at: https://github.com/jgarff/rpi_ws281x
+# The Python library can he found at https://github.com/rpi-ws281x/rpi-ws281x-python
+#
 
 import sys
 import random
@@ -44,6 +35,23 @@ LED_DMA        = 10     # DMA channel to use for generating signal (try 10)
 LED_BRIGHTNESS = 255    # Set to 0 for darkest and 255 for brightest
 LED_INVERT     = False  # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL    = 0      # set to '1' for GPIOs 13, 19, 41, 45 or 53
+
+#LED_STRIP      = ws.SK6812W_STRIP
+#LED_STRIP      = ws.WS2811_STRIP_GRB
+
+# We need to determine wether an RGB or an RGBW strip
+def get_led_strip_type():
+
+    # To eliminate any spaces, just perform a find to see
+    # if the SK6811W (RGBW) is found in the second argument.
+    if sys.argv[1].find(SK6812W, 0) > -1:
+        strip_type = ws.SK6812W_STRIP
+        print("Using SK6812W strip")
+    else:                                           # Assume WS2811B strip
+        strip_type = ws.WS2811_STRIP_GRB
+        print("Using WS2811B strip")
+
+    return strip_type
 
 #
 # Not all of my devices have the same number of LEDs and I want this code to
@@ -532,13 +540,17 @@ if __name__ == '__main__':
     global gblExit
     global gblStrip
 
-    # If there is only one command line argument,then run as normal (no testing)
+    # If there is only two (application plus strip type) command line
+    # argument,then run as normal (no testing)
     # When I testing I do not need to wait the 10 seconds
-    if len(sys.argv) == 1:
+    if len(sys.argv) == 2:
         # We need to wait 10 seconds here because this code with run at
         # device startup and there is a race condition on getting the MQTT
         # services started before this code trys to access them.
         time.sleep(10)
+    elif len(sys.argv) == 1:
+        print("Error - strip type not defined. Must specify WS2811B or SK6812W")
+        exit()
     else:
         print("Testing")    # Feedback to terminal if we are testing
 
@@ -546,7 +558,9 @@ if __name__ == '__main__':
     gblExit = False
 
     # Create NeoPixel object with appropriate configuration.
-    gblStrip = Adafruit_NeoPixel(get_led_count(), LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
+    gblStrip = Adafruit_NeoPixel(get_led_count(), LED_PIN, LED_FREQ_HZ, LED_DMA,
+                                LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL,
+                                get_led_strip_type())
 
     # Initialize the library (must be called once before other functions).
     gblStrip.begin()
