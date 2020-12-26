@@ -213,7 +213,6 @@ def set_strip_color(strip, message):
 
     if get_led_strip_type() == ws.SK6812W_STRIP:
         for i in range(strip.numPixels()):
-
             strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2], white_int))
     else:
         for i in range(strip.numPixels()):
@@ -527,7 +526,11 @@ def LED_strip_CallBack(client, userdata, message):
 
     # These are generic across all devices
     if topic == "off_" + host_name:
-        set_strip_color(gblStrip, "000000,30")
+        if get_led_strip_type() == ws.SK6812W_STRIP:
+            set_strip_color(gblStrip, "000000,10,0")
+        else:
+            set_strip_color(gblStrip, "000000,10")
+
         gblBreak = True
     elif topic == "exit_" + host_name:
          gblExit = True
