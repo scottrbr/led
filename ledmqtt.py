@@ -36,9 +36,6 @@ LED_BRIGHTNESS = 255    # Set to 0 for darkest and 255 for brightest
 LED_INVERT     = False  # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL    = 0      # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
-#LED_STRIP      = ws.SK6812W_STRIP
-#LED_STRIP      = ws.WS2811_STRIP_GRB
-
 # We need to determine wether an RGB or an RGBW strip
 def get_led_strip_type():
 
@@ -65,33 +62,14 @@ def get_led_count():
 
     if host_name == "strip01":
         led_count = 300
+    elif host_name == "strip02":
+        led_count = 188
     elif host_name == "raspberrypi4":
         led_count = 300
     elif host_name == "candle01":
         led_count = 4
 
     return led_count
-
-
-# Define functions which animate LEDs in various ways.
-#def glow(strip, color, wait_ms=50):
-#    """Wipe color across display a pixel at a time."""
-
-#    pixelcount = strip.numPixels();
-#    for bri in range(0,255):
-#        for i in range(strip.numPixels()):
-#            strip.setPixelColor(pixelcount-i, color)
-#            strip.setBrightness(bri)
-#        strip.show()
-#        time.sleep(0.01)
-
-
-#    for bri in range(255,0, -1):
-#        for i in range(strip.numPixels()):
-#            strip.setPixelColor(pixelcount-i, color)
-#            strip.setBrightness(bri)
-#        strip.show()
-#        time.sleep(0.01)
 
 
 def colorWipe(strip, color, wait_ms=50):
@@ -191,6 +169,17 @@ def XMAS_theater_chase(strip, wait_ms=100):
                 if gblBreak or gblExit:
                     break
  
+#
+# Used to find if there was a second comma that would have the "white" color 
+# for SK6812W LED strips.
+#
+def find_nth(haystack, needle, n):
+    start = haystack.find(needle)
+    while start >= 0 and n > 1:
+        start = haystack.find(needle, start+len(needle))
+        n -= 1
+    return start
+
 
 def hex_to_rgb(value):
     value = value.lstrip('#')
@@ -207,12 +196,28 @@ def set_strip_color(strip, message):
     ledclr = hex_to_rgb(message[0:6])
 
     first_comma_loc = message.find(',')
+    second_comma_loc = find_nth(message, ',', 2)
+    print("second comma at: ", second_comma_loc)
     length = len(message)
-    brightness = message[(first_comma_loc+1):(length)]
 
-    for i in range(strip.numPixels()):
-        #strip.setPixelColor(i, Color(ledclr[1], ledclr[0], ledclr[2]))
-        strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2]))
+    # if we only see 1 comma, something is incorrect (no white ) and just 
+    # just assume its RGB, not RGBW
+    if second_comma_loc == -1:
+        brightness = message[(first_comma_loc+1):(length)]
+        white = "0"
+    else:
+        brightness = message[first_comma_loc+1:second_comma_loc]
+        white = message[second_comma_loc+1:length]
+        white_int = int(white)
+        print("brightness = ", brightness, "white = ", white)
+
+    if get_led_strip_type() == ws.SK6812W_STRIP:
+        for i in range(strip.numPixels()):
+
+            strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2], white_int))
+    else:
+        for i in range(strip.numPixels()):
+            strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2]))
 
     # *************** I am limiting the brighntess here ***************
     brightness_int = int(brightness)
