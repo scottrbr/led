@@ -26,9 +26,6 @@ import paho.mqtt.client as mqtt  # Import the MQTT library
 
 
 # LED strip configuration:
-#LED_COUNT      = 300       # Number of LED pixels. This is commented because 
-                            # a function should determine this based on the
-                            # device.
 LED_PIN        = 18     # GPIO pin connected to the pixels (18 uses PWM!).
 LED_FREQ_HZ    = 800000 # LED signal frequency in hertz (usually 800khz)
 LED_DMA        = 10     # DMA channel to use for generating signal (try 10)
@@ -36,17 +33,25 @@ LED_BRIGHTNESS = 255    # Set to 0 for darkest and 255 for brightest
 LED_INVERT     = False  # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL    = 0      # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
-# We need to determine wether an RGB or an RGBW strip
+#
+# Return the strip type we are using: RGB (WS281B) or an RGBW (SK6812W) strip.
+# This is based on the name of the device.
+# ws.WS2811_STRIP_GRB or ws.SK6812W_STRIP
+#
 def get_led_strip_type():
 
-    # To eliminate any spaces, just perform a find to see
-    # if the SK6811W (RGBW) is found in the second argument.
-    if sys.argv[1].find(SK6812W, 0) > -1:
-        strip_type = ws.SK6812W_STRIP
-        print("Using SK6812W strip")
-    else:                                           # Assume WS2811B strip
+    host_name = socket.gethostname()
+
+    if host_name == "strip01":
         strip_type = ws.WS2811_STRIP_GRB
-        print("Using WS2811B strip")
+    elif host_name == "strip02":
+        strip_type = ws.SK6812W_STRIP
+    elif host_name == "raspberrypi4":
+        strip_type = ws.WS2811_STRIP_GRB
+    elif host_name == "candle01":
+        strip_type = ws.WS2811_STRIP_GRB
+    else:
+        strip_type = ws.WS2811_STRIP_GRB
 
     return strip_type
 
@@ -72,8 +77,10 @@ def get_led_count():
     return led_count
 
 
+#
+# Wipe color across display a pixel at a time.
+#
 def colorWipe(strip, color, wait_ms=50):
-    """Wipe color across display a pixel at a time."""
     for i in range(strip.numPixels()):
         strip.setPixelColor(i, color)
 
@@ -170,6 +177,9 @@ def XMAS_theater_chase(strip, wait_ms=100):
                     break
  
 #
+# General function I found on the internet to find the "nth" occurence
+# of a character.
+#
 # Used to find if there was a second comma that would have the "white" color 
 # for SK6812W LED strips.
 #
@@ -200,16 +210,17 @@ def set_strip_color(strip, message):
     print("second comma at: ", second_comma_loc)
     length = len(message)
 
-    # if we only see 1 comma, something is incorrect (no white ) and just 
-    # just assume its RGB, not RGBW
+    # if we only see 1 comma, the color is not assumed to carry the "white"
+    # color (onlY rgb) so assume white is 0
     if second_comma_loc == -1:
         brightness = message[(first_comma_loc+1):(length)]
         white = "0"
     else:
         brightness = message[first_comma_loc+1:second_comma_loc]
         white = message[second_comma_loc+1:length]
-        white_int = int(white)
         print("brightness = ", brightness, "white = ", white)
+
+    white_int = int(white)
 
     if get_led_strip_type() == ws.SK6812W_STRIP:
         for i in range(strip.numPixels()):
@@ -276,9 +287,15 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
 def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
 
     global gblBreak
+
     print("Twinkle")
+
     # Initial the strip to turn off all lights but set the brightness to maximum
-    set_strip_color(strip, "000000,40")
+    if get_led_strip_type() == ws.SK6812W_STRIP:
+        set_strip_color(strip, "000000,40, 0")
+    else:
+        set_strip_color(strip, "000000,40")
+
     start_time = time.time()
 
     #
@@ -548,17 +565,14 @@ if __name__ == '__main__':
     global gblExit
     global gblStrip
 
-    # If there is only two (application plus strip type) command line
-    # argument,then run as normal (no testing)
-    # When I testing I do not need to wait the 10 seconds
-    if len(sys.argv) == 2:
+    # If no extra parameters are set (currently we don't take any), then 
+    # assume we are doing testing where we do not need to have extra
+    # parameters.
+    if len(sys.argv) == 1:
         # We need to wait 10 seconds here because this code with run at
         # device startup and there is a race condition on getting the MQTT
         # services started before this code trys to access them.
         time.sleep(10)
-    elif len(sys.argv) == 1:
-        print("Error - strip type not defined. Must specify WS2811B or SK6812W")
-        exit()
     else:
         print("Testing")    # Feedback to terminal if we are testing
 
