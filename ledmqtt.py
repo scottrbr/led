@@ -46,6 +46,8 @@ def get_led_strip_type():
         strip_type = ws.WS2811_STRIP_GRB
     elif host_name == "strip02":
         strip_type = ws.SK6812W_STRIP
+    elif host_name == "strip03":
+        strip_type = ws.SK6812W_STRIP
     elif host_name == "raspberrypi4":
         strip_type = ws.WS2811_STRIP_GRB
     elif host_name == "candle01":
@@ -69,6 +71,8 @@ def get_led_count():
         led_count = 300
     elif host_name == "strip02":
         led_count = 188
+    elif host_name == "strip03":
+        led_count = 112
     elif host_name == "raspberrypi4":
         led_count = 300
     elif host_name == "candle01":
