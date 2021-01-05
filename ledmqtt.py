@@ -5,9 +5,13 @@
 # Direct port of the Arduino NeoPixel library strandtest example.  Showcases
 # various animations on a strip of NeoPixels.
 #
-# Command line options:
+# This code also makes use of the PIR motion sensor, if it's setup. The
+# way this is integrated is it will turn on an LED strip if motion is
+# detected - which the code for this is located at the very bottom in the
+# main wait loop.
+#
+# Supported LED strip types:
 #   WS2811B : Runs in normal strip mode assuming a WS2811B strip (RGB).
-#   TEST    : Test mode - skips waiting step for MQTT server.
 #   SK6812W : Runs in normal strip mode assuming a SK6812W strip (RGBW).
 WS2811B   = "WS2811B"
 SK6812W   = "SK6812W"
@@ -18,12 +22,15 @@ SK6812W   = "SK6812W"
 
 import sys
 import random
-import time
-import socket       # For getting the computer name
+import time                         # general use
+import socket                       # For getting the computer name
 import _thread
 from rpi_ws281x import *
-import paho.mqtt.client as mqtt  # Import the MQTT library
+import paho.mqtt.client as mqtt     # Import the MQTT library
+import RPi.GPIO as GPIO             # Needed for motion sensor suport
 
+# Motion sensor configuration - the I/O pin I am using
+PIR_PIN = 7
 
 # LED strip configuration:
 LED_PIN        = 18     # GPIO pin connected to the pixels (18 uses PWM!).
@@ -59,7 +66,7 @@ def get_led_strip_type():
 
 #
 # Not all of my devices have the same number of LEDs and I want this code to
-# run in all of them so I need to make this dynamic based on the name of the
+# be used for all of them so I need to make this dynamic based on the name of the
 # device.
 #
 def get_led_count():
@@ -74,13 +81,82 @@ def get_led_count():
     elif host_name == "strip03":
         led_count = 112
     elif host_name == "raspberrypi4":
-        led_count = 300
+        led_count = 4
     elif host_name == "candle01":
         led_count = 4
 
     return led_count
 
+# 
+# This function returns True if the LED strip has a motion sensor in use.
+# False if not.
+#
+def using_motion_sensor():
 
+    sensor_use = False
+    host_name = socket.gethostname()
+
+    if host_name == "raspberrypi4":
+        sensor_use = True
+    elif host_name == "strip03":
+        sensor_use = True
+ 
+    return sensor_use
+
+
+#
+# LED strips and candles (short LED strips) share common function (but not
+# all) so add a function where we can test if this is a candle LED strip.
+# Note that this is determined from the word "candle" being part of the
+# device name.
+#
+def is_candle():
+
+    candle_led_strip = False
+    host_name = socket.gethostname()
+
+    if host_name.find("candle") > -1:   # Candle specific functions
+        candle_led_strip = True
+    elif host_name == "raspberrypi4":   # This computer is used for development
+        candle_led_strip = False        # Put it in here in case we are working
+                                        # on candle functions.
+
+    return candle_led_strip 
+
+
+#
+# Power for LED strips can take large power supplies which can be very
+# inconvenient, but we need to keep safe. So we will use this function
+# to cap the may brightness output if I not able to provide a power
+# supply to cover the worst case. The brightness is a numebr from 
+# 1 to 255.
+#
+# If suggested brightness if not included, then return the maximum
+# brightness for that LED strip.
+#
+def set_strip_brightness(strip, suggested_brightness=0):
+
+    max_brightness = 30
+
+    host_name = socket.gethostname()
+
+    if host_name == "strip01":
+        max_brightness = 30
+    elif host_name == "strip02":
+        max_brightness = 30
+    elif host_name == "strip03":
+        max_brightness = 40
+    elif host_name == "raspberrypi4": # This computer is used for development
+        max_brightness = 30
+    elif host_name == "candle01":
+        max_brightness = 40
+
+    # If the caller is asking for less than the maximum, then use that number.
+    if suggested_brightness > 0 and suggested_brightness < max_brightness:
+        max_brightness = suggested_brightness
+
+    strip.setBrightness(max_brightness)
+ 
 #
 # Wipe color across display a pixel at a time.
 #
@@ -118,7 +194,7 @@ def rainbow(strip, wait_ms=50, iterations=10):
 
     global gblBreak
 
-    strip.setBrightness(30)
+    set_strip_brightness(strip, 30)
  
     """Draw rainbow that fades across all pixels at once."""
     for j in range(256*iterations):
@@ -162,7 +238,7 @@ def XMAS_theater_chase(strip, wait_ms=100):
     global gblBreak
     global gblExit
 
-    strip.setBrightness(30)
+    set_strip_brightness(strip, 30)
 
     # Movie theater light style chaser animation
     while not gblBreak and not gblExit:
@@ -195,15 +271,22 @@ def find_nth(haystack, needle, n):
     return start
 
 
+#
+# This function is used to convert the RGB color sent vi MQTT in hex which
+# is 6 digits - 2 hex numbers per color. It returns an integer tuple for RGB.
+#
 def hex_to_rgb(value):
     value = value.lstrip('#')
     lv = len(value)
     return tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
 
+
 #
 # Sets the entire strip color and brightness based on a message this is
 # color in hex (rgb), comma, brightness in decimal which looks like:
-# ff34b0,98
+# ff34b0,98. If we are using a 6812 strip, there will be an extra comma
+# followed by the amount of white (1-255). This formation will look like
+# ff34b0,98,156.
 #
 def set_strip_color(strip, message):
 
@@ -233,12 +316,8 @@ def set_strip_color(strip, message):
         for i in range(strip.numPixels()):
             strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2]))
 
-    # *************** I am limiting the brighntess here ***************
     brightness_int = int(brightness)
-    if brightness_int > 30:
-        brightness_int = 30
-
-    strip.setBrightness(brightness_int)
+    set_strip_brightness(strip, brightness_int)
     strip.show()
 
 
@@ -296,11 +375,12 @@ def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
 
     # Initial the strip to turn off all lights but set the brightness to maximum
     if get_led_strip_type() == ws.SK6812W_STRIP:
-        set_strip_color(strip, "000000,40, 0")
+        set_strip_color(strip, "000000,00, 0")
     else:
-        set_strip_color(strip, "000000,40")
+        set_strip_color(strip, "000000,00")
 
     start_time = time.time()
+    set_strip_brightness(strip, 40)
 
     #
     # Intialize all of our arrays
@@ -401,7 +481,8 @@ def red_white_blue(strip):
     # Initial the strip to turn off all lights but set the brightness to maximum
 
     start = 0
-    set_strip_color(strip, "000000,30")
+    set_strip_color(strip, "000000,00")
+    set_strip_brightness(strip, 30)
  
     while (1):
 
@@ -448,7 +529,9 @@ def candle_start(strip, season_color):
                 strip.setPixelColor(i, Color(255, 10, 0))  # set the number of pixels to turn on and color value (yellowish)
 
         strip.show();   # turn pixels on
-        strip.setBrightness(random.randint(5, 40))
+#        strip.setBrightness(random.randint(5, 40))
+        set_strip_brightness(strip, random.randint(5, 40))
+
 
         if color == 0:      # if red was chosen
             if not XMAS_time:
@@ -540,7 +623,7 @@ def LED_strip_CallBack(client, userdata, message):
                 _thread.start_new_thread( XMAS_theater_chase, (gblStrip, ) )
 
     # Put candle specific handlers here
-    if host_name.find("candle") > -1:   # Candle specific functions
+    if is_candle():                         # Candle specific functions
         if topic == "on_" + host_name:
             print("Turn on: ", host_name)
             _thread.start_new_thread( candle_start, (gblStrip, message) )
@@ -580,6 +663,8 @@ if __name__ == '__main__':
     else:
         print("Testing")    # Feedback to terminal if we are testing
 
+    # Reset global variables needed for breaking out of functions and exiting
+    # the application.
     gblBreak = False
     gblExit = False
 
@@ -595,6 +680,11 @@ if __name__ == '__main__':
     host_name = socket.gethostname()
     start_topic = host_name
     print("Starting up as:", host_name)
+
+    # Motion sensor setup
+    if using_motion_sensor():
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(PIR_PIN, GPIO.IN)
 
     #
     # Setup MWTT Broker
@@ -622,6 +712,13 @@ if __name__ == '__main__':
 
 # Main program loop
     while not gblExit:
-        time.sleep(1)  # Sleep for a second
+        # Turn the strip on if we are using a motion sensor
+        if using_motion_sensor():
+            if GPIO.input(PIR_PIN):
+                colorWipe(gblStrip, Color(0,0,30), 0)
+            else:
+                colorWipe(gblStrip, Color(0,0,0), 0)
+
+        time.sleep(0.5)  # Sleep for a second - was 1
  
 
