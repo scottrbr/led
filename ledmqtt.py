@@ -79,7 +79,7 @@ def get_led_count():
     elif host_name == "strip02":
         led_count = 188
     elif host_name == "strip03":
-        led_count = 112
+        led_count = 117
     elif host_name == "raspberrypi4":
         led_count = 4
     elif host_name == "candle01":
@@ -145,14 +145,14 @@ def set_strip_brightness(strip, suggested_brightness=0):
     elif host_name == "strip02":
         max_brightness = 30
     elif host_name == "strip03":
-        max_brightness = 40
+        max_brightness = 30
     elif host_name == "raspberrypi4": # This computer is used for development
         max_brightness = 30
     elif host_name == "candle01":
         max_brightness = 40
 
     # If the caller is asking for less than the maximum, then use that number.
-    if suggested_brightness > 0 and suggested_brightness < max_brightness:
+    if suggested_brightness >= 0 and suggested_brightness < max_brightness:
         max_brightness = suggested_brightness
 
     strip.setBrightness(max_brightness)
@@ -160,11 +160,11 @@ def set_strip_brightness(strip, suggested_brightness=0):
 #
 # Wipe color across display a pixel at a time.
 #
-def colorWipe(strip, color, wait_ms=50):
-    for i in range(strip.numPixels()):
-        strip.setPixelColor(i, color)
+#def colorWipe(strip, color, wait_ms=50):
+#    for i in range(strip.numPixels()):
+#        strip.setPixelColor(i, color)
 
-    strip.show()
+#    strip.show()
 
 
 def theaterChase(strip, color, wait_ms=50, iterations=10):
@@ -294,7 +294,7 @@ def set_strip_color(strip, message):
 
     first_comma_loc = message.find(',')
     second_comma_loc = find_nth(message, ',', 2)
-    print("second comma at: ", second_comma_loc)
+
     length = len(message)
 
     # if we only see 1 comma, the color is not assumed to carry the "white"
@@ -305,7 +305,6 @@ def set_strip_color(strip, message):
     else:
         brightness = message[first_comma_loc+1:second_comma_loc]
         white = message[second_comma_loc+1:length]
-        print("brightness = ", brightness, "white = ", white)
 
     white_int = int(white)
 
@@ -317,8 +316,19 @@ def set_strip_color(strip, message):
             strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2]))
 
     brightness_int = int(brightness)
+
+    #
+    # Experimenting with code for a smooth "on"
+    #
+#    if brightness_int == 0:
     set_strip_brightness(strip, brightness_int)
     strip.show()
+#    else:
+#        # Turn the light on a little slower than instantly
+#        for brightness_inc in range(brightness_int):
+#            set_strip_brightness(strip, brightness_inc)
+#            strip.show()
+#            time.sleep(0.1)
 
 
 def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
@@ -330,7 +340,12 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
 
     for i in range(0, pixel_count-EyeSize-2):
         #strip.fill()         #setAll(0,0,0);
-        colorWipe(strip, Color(0,0,0), 0)
+#        colorWipe(strip, Color(0,0,0), 0)
+        if get_led_strip_type() == ws.SK6812W_STRIP:
+            set_strip_color(gblStrip, "000000,00,0")
+        else:
+            set_strip_color(gblStrip, "000000,00")
+
 
         strip.setPixelColor(i, Color(int(green/10), int(red/10), int(blue/10)))
         for j in range(0, EyeSize):
@@ -347,7 +362,11 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
 
     for i in range(pixel_count-EyeSize-2, 0, -1):
 
-        colorWipe(strip, Color(0,0,0), 0)
+#        colorWipe(strip, Color(0,0,0), 0)
+        if get_led_strip_type() == ws.SK6812W_STRIP:
+            set_strip_color(gblStrip, "000000,00,0")
+        else:
+            set_strip_color(gblStrip, "000000,00")
 
         strip.setPixelColor(i, Color(int(green/10), int(red/10), int(blue/10)))
         for j in range(1, EyeSize):
@@ -711,13 +730,25 @@ if __name__ == '__main__':
     #    XMAS_theater_chase(strip)
 
 # Main program loop
+    motion_detected = False
     while not gblExit:
+#        print("IO=", GPIO.input(PIR_PIN))
         # Turn the strip on if we are using a motion sensor
         if using_motion_sensor():
             if GPIO.input(PIR_PIN):
-                colorWipe(gblStrip, Color(0,0,30), 0)
-            else:
-                colorWipe(gblStrip, Color(0,0,0), 0)
+                if not motion_detected:
+                    motion_detected = True
+                    if get_led_strip_type() == ws.SK6812W_STRIP:
+                        set_strip_color(gblStrip, "000000,200,20")
+                    else:
+                        set_strip_color(gblStrip, "000000,00")
+
+            elif motion_detected:
+                motion_detected = False
+                if get_led_strip_type() == ws.SK6812W_STRIP:
+                    set_strip_color(gblStrip, "000000,00,0")
+                else:
+                    set_strip_color(gblStrip, "000000,00")
 
         time.sleep(0.5)  # Sleep for a second - was 1
  
