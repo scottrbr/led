@@ -1,9 +1,10 @@
-#!/usr/bin/env python3
-# NeoPixel library strandtest example
-# Author: Tony DiCola (tony@tonydicola.com)
+# My LED strip python code. I originally started from the strandtest.py
+# file and worked myself up from there.
 #
-# Direct port of the Arduino NeoPixel library strandtest example.  Showcases
-# various animations on a strip of NeoPixels.
+# Messages are send from an Node-Red application to a MQTT server and then
+# received by this call back function in here that handles the requests. I
+# use the the host name of the device to determine what MQTT messages it
+# should listen to.
 #
 # This code also makes use of the PIR motion sensor, if it's setup. The
 # way this is integrated is it will turn on an LED strip if motion is
@@ -47,22 +48,22 @@ LED_INVERT     = False  # True to invert the signal (when using NPN transistor l
 LED_CHANNEL    = 0      # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
 # Gamma 8-bit correction table
-gamma8 =    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                # 16
-             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,                # 32
-             1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,                # 48
-             2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,                # 64
-             5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10,               # 80
-            10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16, # 96
-            17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25, # 112
-            25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36, # 128
-            37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50, # 144
-            51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68, # 160
-            69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89, # 176
-            90, 92, 93, 95, 96, 98, 99,101,102,104,105,107,109,110,112,114, # 192
-           115,117,119,120,122,124,126,127,129,131,133,135,137,138,140,142, # 208
-           144,146,148,150,152,154,156,158,160,162,164,167,169,171,173,175, # 224
-           177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213, # 240
-           215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255] # 256
+gamma8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                # 16
+          0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,                # 32
+          1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,                # 48
+          2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,                # 64
+          5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10,               # 80
+         10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16, # 96
+         17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25, # 112
+         25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36, # 128
+         37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50, # 144
+         51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68, # 160
+         69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89, # 176
+         90, 92, 93, 95, 96, 98, 99,101,102,104,105,107,109,110,112,114, # 192
+        115,117,119,120,122,124,126,127,129,131,133,135,137,138,140,142, # 208
+        144,146,148,150,152,154,156,158,160,162,164,167,169,171,173,175, # 224
+        177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213, # 240
+        215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255] # 256
 
 #
 # Return the strip type we are using: RGB (WS281B) or an RGBW (SK6812W) strip.
@@ -114,16 +115,23 @@ def get_led_count():
 
 # 
 # This function returns True if the LED strip has a motion sensor in use.
-# False if not.
+# False if not. There is another variable used in here that allows me to 
+# turn this featrure off and then back on for LED strips using motion
+# sensors. For example, there are times where I just might want the light
+# on for a while with out turning itself off from lack of movement.
 #
 def using_motion_sensor():
+
+    global gblDetectingMotion
 
     host_name = socket.gethostname()
 
     if host_name == "raspberrypi4":
-        sensor_use = True
+        if gblDetectingMotion:
+            sensor_use = True
     elif host_name == "strip03":
-        sensor_use = True
+        if gblDetectingMotion:
+            sensor_use = True
     else:
         sensor_use = False
  
@@ -155,40 +163,45 @@ def is_candle():
 # Power for LED strips can take large power supplies which can be very
 # inconvenient, but we need to keep safe. So we will use this function
 # to cap the may brightness output if I not able to provide a power
-# supply to cover the worst case. The brightness is a numebr from 
-# 1 to 255.
+# supply to cover the worst case. The brightness is a number from 
+# 1 to 255. Notes the the miximum brightness is based on the gamma8
+# table so gamma8 "120" comes out to 30 (out of 255).
 #
 def set_strip_brightness(strip, suggested_brightness=0):
 
     host_name = socket.gethostname()
 
     if host_name == "strip01":
-        max_brightness = 30
+        max_brightness = 120
     elif host_name == "strip02":
-        max_brightness = 30
+        max_brightness = 120
     elif host_name == "strip03":
-        max_brightness = 30
+        max_brightness = 120
     elif host_name == "raspberrypi4": # This computer is used for development
-        max_brightness = 100
+        max_brightness = 120
     elif host_name == "candle01":
-        max_brightness = 40
+        max_brightness = 140
     else:
-        max_brightness = 30
+        max_brightness = 120
 
     # If the caller is asking for less than the maximum, then use that number.
     if suggested_brightness >= 0 and suggested_brightness < max_brightness:
         max_brightness = suggested_brightness
 
-    strip.setBrightness(max_brightness)
+    strip.setBrightness(gamma8[max_brightness])
  
-#
-# Wipe color across display a pixel at a time.
-#
-#def colorWipe(strip, color, wait_ms=50):
-#    for i in range(strip.numPixels()):
-#        strip.setPixelColor(i, color)
 
-#    strip.show()
+#
+# This function should evetually handle all setting the pixels colors.
+# This was we can control if gamma convserion is used - which it is currently.
+#
+def set_pixel_color(strip, pixel, R, G, B, W=-1):
+
+    # If the (W)hite light -1, then it was not passed. Assume RGB, not RGBW
+    if W == -1:
+        strip.setPixelColor(pixel, Color(gamma8[R], gamma8[G], gamma8[B]))
+    else:
+        strip.setPixelColor(pixel, Color(gamma8[R], gamma8[G], gamma8[B], gamma8[W]))
 
 
 def theaterChase(strip, color, wait_ms=50, iterations=10):
@@ -202,23 +215,36 @@ def theaterChase(strip, color, wait_ms=50, iterations=10):
             for i in range(0, strip.numPixels(), 3):
                 strip.setPixelColor(i+q, 0)
 
+
+#def wheel(pos):
+#    """Generate rainbow colors across 0-255 positions."""
+#    if pos < 85:
+#        return Color(pos * 3, 255 - pos * 3, 0)
+#    elif pos < 170:
+#        pos -= 85
+#        return Color(255 - pos * 3, 0, pos * 3)
+#    else:
+#        pos -= 170
+#        return Color(0, pos * 3, 255 - pos * 3)
+
+
 def wheel(pos):
     """Generate rainbow colors across 0-255 positions."""
     if pos < 85:
-        return Color(pos * 3, 255 - pos * 3, 0)
+        return Color(gamma8[pos * 3], gamma8[255 - pos * 3], 0)
     elif pos < 170:
         pos -= 85
-        return Color(255 - pos * 3, 0, pos * 3)
+        return Color(gamma8[255 - pos * 3], 0, gamma8[pos * 3])
     else:
         pos -= 170
-        return Color(0, pos * 3, 255 - pos * 3)
+        return Color(0, gamma8[pos * 3], gamma8[255 - pos * 3])
 
 # Create a moving rainbow
 def rainbow(strip, wait_ms=50, iterations=10):
 
     global gblBreak
 
-    set_strip_brightness(strip, 30)
+    set_strip_brightness(strip, 100)
  
     """Draw rainbow that fades across all pixels at once."""
     for j in range(256*iterations):
@@ -234,26 +260,6 @@ def rainbow(strip, wait_ms=50, iterations=10):
         time.sleep(wait_ms/1000.0)
 
 
-def rainbowCycle(strip, wait_ms=20, iterations=5):
-    """Draw rainbow that uniformly distributes itself across all pixels."""
-    for j in range(256*iterations):
-        for i in range(strip.numPixels()):
-            strip.setPixelColor(i, wheel((int(i * 256 / strip.numPixels()) + j) & 255))
-        strip.show()
-        time.sleep(wait_ms/1000.0)
-
-
-def theaterChaseRainbow(strip, wait_ms=50):
-    """Rainbow movie theater light style chaser animation."""
-    for j in range(256):
-        for q in range(3):
-            for i in range(0, strip.numPixels(), 3):
-                strip.setPixelColor(i+q, wheel((i+j) % 255))
-            strip.show()
-            time.sleep(wait_ms/1000.0)
-            for i in range(0, strip.numPixels(), 3):
-                strip.setPixelColor(i+q, 0)
-
 #
 # A Christmas color theme variation on the normal theatre chase routin.
 #
@@ -262,7 +268,7 @@ def XMAS_theater_chase(strip, wait_ms=100):
     global gblBreak
     global gblExit
 
-    set_strip_brightness(strip, 30)
+    set_strip_brightness(strip, 120)
 
     # Movie theater light style chaser animation
     while not gblBreak and not gblExit:
@@ -334,29 +340,19 @@ def set_strip_color(strip, message):
 
     if get_led_strip_type() == ws.SK6812W_STRIP:
         for i in range(strip.numPixels()):
-#            strip.setPixelColor(i, Color(ledclr[0],
-#                                         ledclr[1],
-#                                         ledclr[2],
-#                                         white_int))
-            strip.setPixelColor(i, Color(gamma8[ledclr[0]],
-                                         gamma8[ledclr[1]],
-                                         gamma8[ledclr[2]],
-                                         gamma8[white_int]))
+#            strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2], white_int))
+            set_pixel_color(strip, i, ledclr[0], ledclr[1], ledclr[2], white_int)
     else:
         for i in range(strip.numPixels()):
-#            strip.setPixelColor(i,  Color(ledclr[0],
-#                                          ledclr[1],
-#                                          ledclr[2]))
-            strip.setPixelColor(i,  Color(gamma8[ledclr[0]],
-                                          gamma8[ledclr[1]],
-                                          gamma8[ledclr[2]]))
+#            strip.setPixelColor(i,  Color(ledclr[0], ledclr[1], ledclr[2]))
+            set_pixel_color(strip, i, ledclr[0], ledclr[1], ledclr[2])
 
     brightness_int = int(brightness)
 
     #
     # Experimenting with code for a smooth "on"
     #
-    if brightness_int == 0:
+    if brightness_int == 0:     # If we are turning it off, do it immediately
         set_strip_brightness(strip, 0)
         strip.show()
     else:
@@ -364,8 +360,7 @@ def set_strip_color(strip, message):
         # Let's turn on within 1 second so make the calculation
         turn_on_delay = 1/brightness_int
         for brightness_inc in range(brightness_int):
-            set_strip_brightness(strip, gamma8[brightness_inc])
-#            print("gamma bightness = ", gamma8[brightness_inc])
+            set_strip_brightness(strip, brightness_inc)
             strip.show()
             time.sleep(turn_on_delay)
 
@@ -378,19 +373,18 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
     pixel_count = strip.numPixels()
 
     for i in range(0, pixel_count-EyeSize-2):
-        #strip.fill()         #setAll(0,0,0);
-#        colorWipe(strip, Color(0,0,0), 0)
+
         if get_led_strip_type() == ws.SK6812W_STRIP:
             set_strip_color(gblStrip, "000000,00,0")
         else:
             set_strip_color(gblStrip, "000000,00")
-
 
         strip.setPixelColor(i, Color(int(green/10), int(red/10), int(blue/10)))
         for j in range(0, EyeSize):
             strip.setPixelColor(i+j, Color(green, red, blue))
 
         strip.setPixelColor(i+EyeSize, Color(int(green/10), int(red/10), int(blue/10)))
+        set_strip_brightness(strip, 120)
         strip.show()
         time.sleep(SpeedDelay/1000)
 
@@ -401,7 +395,6 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
 
     for i in range(pixel_count-EyeSize-2, 0, -1):
 
-#        colorWipe(strip, Color(0,0,0), 0)
         if get_led_strip_type() == ws.SK6812W_STRIP:
             set_strip_color(gblStrip, "000000,00,0")
         else:
@@ -412,6 +405,7 @@ def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
             strip.setPixelColor(i+j, Color(green, red, blue))
 
         strip.setPixelColor(i+EyeSize, Color(int(green/10), int(red/10), int(blue/10)))
+        set_strip_brightness(strip, 120)
         strip.show()
         time.sleep(SpeedDelay/1000)
 
@@ -438,7 +432,7 @@ def Twinkle(strip, numOfLights, LEDMaxBright, Minutes, ColorTwinkle):
         set_strip_color(strip, "000000,00")
 
     start_time = time.time()
-    set_strip_brightness(strip, 40)
+    set_strip_brightness(strip, 140)
 
     #
     # Intialize all of our arrays
@@ -540,7 +534,7 @@ def red_white_blue(strip):
 
     start = 0
     set_strip_color(strip, "000000,00")
-    set_strip_brightness(strip, 30)
+    set_strip_brightness(strip, 120)
  
     while (1):
 
@@ -587,7 +581,6 @@ def candle_start(strip, season_color):
                 strip.setPixelColor(i, Color(255, 10, 0))  # set the number of pixels to turn on and color value (yellowish)
 
         strip.show();   # turn pixels on
-#        strip.setBrightness(random.randint(5, 40))
         set_strip_brightness(strip, random.randint(5, 40))
 
 
@@ -709,6 +702,7 @@ if __name__ == '__main__':
     global gblBreak
     global gblExit
     global gblStrip
+    global gblDetectingMotion
 
     # If no extra parameters are set (currently we don't take any), then 
     # assume we are doing testing where we do not need to have extra
@@ -725,6 +719,8 @@ if __name__ == '__main__':
     # the application.
     gblBreak = False
     gblExit = False
+    gblDetectingMotion = True   # Turn this on my default for LED strips
+                                # with this feature.
 
     # Create NeoPixel object with appropriate configuration.
     gblStrip = Adafruit_NeoPixel(get_led_count(), LED_PIN, LED_FREQ_HZ, LED_DMA,
@@ -771,8 +767,10 @@ if __name__ == '__main__':
 # Main program loop
     motion_detected = False
     while not gblExit:
-#        print("IO=", GPIO.input(PIR_PIN))
-        # Turn the strip on if we are using a motion sensor
+
+        # If the LED strip is has a motion sensor connected, then turn on
+        # the strip for a little bit of time (determined by potentiometer
+        # on the sensor) and then turn the LEDs off.
         if using_motion_sensor():
             if GPIO.input(PIR_PIN):
                 if not motion_detected:
