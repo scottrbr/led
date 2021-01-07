@@ -766,7 +766,7 @@ if __name__ == '__main__':
 
     # Put test code here when needed.
     #if len(sys.argv) > 1:
-    #    XMAS_theater_chase(strip)
+    #    XMAS_theater_chase(gblStrip)
 
 # Main program loop
     motion_detected = False
@@ -780,7 +780,7 @@ if __name__ == '__main__':
                     if get_led_strip_type() == ws.SK6812W_STRIP:
                         set_strip_color(gblStrip, "000000,200,130")
                     else:
-                        set_strip_color(gblStrip, "000050,110")
+                        set_strip_color(gblStrip, "000080,110")
 
             elif motion_detected:
                 motion_detected = False
