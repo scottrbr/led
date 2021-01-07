@@ -125,6 +125,7 @@ def using_motion_sensor():
     global gblDetectingMotion
 
     host_name = socket.gethostname()
+    sensor_use = False
 
     if host_name == "raspberrypi4":
         if gblDetectingMotion:
@@ -132,8 +133,6 @@ def using_motion_sensor():
     elif host_name == "strip03":
         if gblDetectingMotion:
             sensor_use = True
-    else:
-        sensor_use = False
  
     return sensor_use
 
@@ -147,14 +146,13 @@ def using_motion_sensor():
 def is_candle():
 
     host_name = socket.gethostname()
+    candle_led_strip = False
 
     if host_name.find("candle") > -1:   # Candle specific functions
         candle_led_strip = True
     elif host_name == "raspberrypi4":   # This computer is used for development
         candle_led_strip = False        # Put it in here in case we are working
                                         # on candle functions.
-    else:
-        candle_led_strip = False
 
     return candle_led_strip 
 
@@ -170,6 +168,7 @@ def is_candle():
 def set_strip_brightness(strip, suggested_brightness=0):
 
     host_name = socket.gethostname()
+    max_brightness = 120
 
     if host_name == "strip01":
         max_brightness = 120
@@ -178,11 +177,9 @@ def set_strip_brightness(strip, suggested_brightness=0):
     elif host_name == "strip03":
         max_brightness = 120
     elif host_name == "raspberrypi4": # This computer is used for development
-        max_brightness = 120
+        max_brightness = 140
     elif host_name == "candle01":
         max_brightness = 140
-    else:
-        max_brightness = 120
 
     # If the caller is asking for less than the maximum, then use that number.
     if suggested_brightness >= 0 and suggested_brightness < max_brightness:
@@ -244,7 +241,7 @@ def rainbow(strip, wait_ms=50, iterations=10):
 
     global gblBreak
 
-    set_strip_brightness(strip, 100)
+    set_strip_brightness(strip, 140)
  
     """Draw rainbow that fades across all pixels at once."""
     for j in range(256*iterations):
@@ -634,6 +631,7 @@ def LED_strip_CallBack(client, userdata, message):
     global gblBreak
     global gblExit
     global gblStrip
+    global gblDetectingMotion
 
     topic = str(message.topic)
     host_name = socket.gethostname()
@@ -655,6 +653,10 @@ def LED_strip_CallBack(client, userdata, message):
     if host_name.find("strip") > -1 or host_name.find("raspberrypi4") > -1:    # LED strip specific instructions
         if topic == "on_" + host_name:
             set_strip_color(gblStrip, message)
+        elif topic == "motion_on_" + host_name:
+            gblDetectingMotion = True
+        elif topic == "motion_off_" + host_name:
+            gblDetectingMotion = False
         elif topic == "strip_pattern_" + host_name:
             if message == "rainbow":
                 _thread.start_new_thread( rainbow, (gblStrip, ) )
@@ -749,6 +751,10 @@ if __name__ == '__main__':
     # LED strip specific topics
     ourClient.subscribe("strip_pattern_" + host_name)
 
+    # Motion detection commends for strips with one attached
+    ourClient.subscribe("motion_on_" + host_name)
+    ourClient.subscribe("motion_off_" + host_name)
+ 
     # These are generic topics across all devices
     ourClient.subscribe("on_" + host_name)
     ourClient.subscribe("off_" + host_name)
@@ -775,6 +781,7 @@ if __name__ == '__main__':
             if GPIO.input(PIR_PIN):
                 if not motion_detected:
                     motion_detected = True
+                    print("Motion detected")
                     if get_led_strip_type() == ws.SK6812W_STRIP:
                         set_strip_color(gblStrip, "000000,200,130")
                     else:
