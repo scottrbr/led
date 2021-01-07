@@ -19,7 +19,13 @@ SK6812W   = "SK6812W"
 # The general library can found at: https://github.com/jgarff/rpi_ws281x
 # The Python library can he found at https://github.com/rpi-ws281x/rpi-ws281x-python
 #
-
+# Below is a short description for the devices referenced in this file
+# strip01 - LED strip on back patio
+# strip02 - lights around computer displays
+# strip03 - under lighting for main kitchen cabinets
+# raspberrypi4 - development and general use raspberry pi
+# candle01 - electric led candle
+ 
 import sys
 import random
 import time                         # general use
@@ -39,6 +45,24 @@ LED_DMA        = 10     # DMA channel to use for generating signal (try 10)
 LED_BRIGHTNESS = 255    # Set to 0 for darkest and 255 for brightest
 LED_INVERT     = False  # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL    = 0      # set to '1' for GPIOs 13, 19, 41, 45 or 53
+
+# Gamma 8-bit correction table
+gamma8 =    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                # 16
+             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,                # 32
+             1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,                # 48
+             2, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 5, 5, 5,                # 64
+             5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10,               # 80
+            10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16, # 96
+            17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25, # 112
+            25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36, # 128
+            37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50, # 144
+            51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68, # 160
+            69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89, # 176
+            90, 92, 93, 95, 96, 98, 99,101,102,104,105,107,109,110,112,114, # 192
+           115,117,119,120,122,124,126,127,129,131,133,135,137,138,140,142, # 208
+           144,146,148,150,152,154,156,158,160,162,164,167,169,171,173,175, # 224
+           177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213, # 240
+           215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255] # 256
 
 #
 # Return the strip type we are using: RGB (WS281B) or an RGBW (SK6812W) strip.
@@ -71,7 +95,6 @@ def get_led_strip_type():
 #
 def get_led_count():
 
-    led_count = 100
     host_name = socket.gethostname()
 
     if host_name == "strip01":
@@ -84,6 +107,8 @@ def get_led_count():
         led_count = 4
     elif host_name == "candle01":
         led_count = 4
+    else:
+        led_count = 100
 
     return led_count
 
@@ -93,13 +118,14 @@ def get_led_count():
 #
 def using_motion_sensor():
 
-    sensor_use = False
     host_name = socket.gethostname()
 
     if host_name == "raspberrypi4":
         sensor_use = True
     elif host_name == "strip03":
         sensor_use = True
+    else:
+        sensor_use = False
  
     return sensor_use
 
@@ -112,7 +138,6 @@ def using_motion_sensor():
 #
 def is_candle():
 
-    candle_led_strip = False
     host_name = socket.gethostname()
 
     if host_name.find("candle") > -1:   # Candle specific functions
@@ -120,6 +145,8 @@ def is_candle():
     elif host_name == "raspberrypi4":   # This computer is used for development
         candle_led_strip = False        # Put it in here in case we are working
                                         # on candle functions.
+    else:
+        candle_led_strip = False
 
     return candle_led_strip 
 
@@ -131,12 +158,7 @@ def is_candle():
 # supply to cover the worst case. The brightness is a numebr from 
 # 1 to 255.
 #
-# If suggested brightness if not included, then return the maximum
-# brightness for that LED strip.
-#
 def set_strip_brightness(strip, suggested_brightness=0):
-
-    max_brightness = 30
 
     host_name = socket.gethostname()
 
@@ -147,9 +169,11 @@ def set_strip_brightness(strip, suggested_brightness=0):
     elif host_name == "strip03":
         max_brightness = 30
     elif host_name == "raspberrypi4": # This computer is used for development
-        max_brightness = 30
+        max_brightness = 100
     elif host_name == "candle01":
         max_brightness = 40
+    else:
+        max_brightness = 30
 
     # If the caller is asking for less than the maximum, then use that number.
     if suggested_brightness >= 0 and suggested_brightness < max_brightness:
@@ -285,7 +309,7 @@ def hex_to_rgb(value):
 # Sets the entire strip color and brightness based on a message this is
 # color in hex (rgb), comma, brightness in decimal which looks like:
 # ff34b0,98. If we are using a 6812 strip, there will be an extra comma
-# followed by the amount of white (1-255). This formation will look like
+# followed by the amount of white (0-255). This formation will look like
 # ff34b0,98,156.
 #
 def set_strip_color(strip, message):
@@ -310,25 +334,40 @@ def set_strip_color(strip, message):
 
     if get_led_strip_type() == ws.SK6812W_STRIP:
         for i in range(strip.numPixels()):
-            strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2], white_int))
+#            strip.setPixelColor(i, Color(ledclr[0],
+#                                         ledclr[1],
+#                                         ledclr[2],
+#                                         white_int))
+            strip.setPixelColor(i, Color(gamma8[ledclr[0]],
+                                         gamma8[ledclr[1]],
+                                         gamma8[ledclr[2]],
+                                         gamma8[white_int]))
     else:
         for i in range(strip.numPixels()):
-            strip.setPixelColor(i, Color(ledclr[0], ledclr[1], ledclr[2]))
+#            strip.setPixelColor(i,  Color(ledclr[0],
+#                                          ledclr[1],
+#                                          ledclr[2]))
+            strip.setPixelColor(i,  Color(gamma8[ledclr[0]],
+                                          gamma8[ledclr[1]],
+                                          gamma8[ledclr[2]]))
 
     brightness_int = int(brightness)
 
     #
     # Experimenting with code for a smooth "on"
     #
-#    if brightness_int == 0:
-    set_strip_brightness(strip, brightness_int)
-    strip.show()
-#    else:
-#        # Turn the light on a little slower than instantly
-#        for brightness_inc in range(brightness_int):
-#            set_strip_brightness(strip, brightness_inc)
-#            strip.show()
-#            time.sleep(0.1)
+    if brightness_int == 0:
+        set_strip_brightness(strip, 0)
+        strip.show()
+    else:
+        # Turn the light on a little slower than instantly
+        # Let's turn on within 1 second so make the calculation
+        turn_on_delay = 1/brightness_int
+        for brightness_inc in range(brightness_int):
+            set_strip_brightness(strip, gamma8[brightness_inc])
+#            print("gamma bightness = ", gamma8[brightness_inc])
+            strip.show()
+            time.sleep(turn_on_delay)
 
 
 def CylonBounce(strip, red, green, blue, EyeSize, SpeedDelay, ReturnDelay):
@@ -739,9 +778,9 @@ if __name__ == '__main__':
                 if not motion_detected:
                     motion_detected = True
                     if get_led_strip_type() == ws.SK6812W_STRIP:
-                        set_strip_color(gblStrip, "000000,200,20")
+                        set_strip_color(gblStrip, "000000,200,130")
                     else:
-                        set_strip_color(gblStrip, "000000,00")
+                        set_strip_color(gblStrip, "000050,110")
 
             elif motion_detected:
                 motion_detected = False
