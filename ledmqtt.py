@@ -42,12 +42,13 @@ PIR_PIN = 7
 # LED strip configuration:
 LED_PIN        = 18     # GPIO pin connected to the pixels (18 uses PWM!).
 LED_FREQ_HZ    = 800000 # LED signal frequency in hertz (usually 800khz)
-LED_DMA        = 10     # DMA channel to use for generating signal (try 10)
+LED_DMA        = 10     # DMA channel to use for generating signal (using 10)
 LED_BRIGHTNESS = 255    # Set to 0 for darkest and 255 for brightest
 LED_INVERT     = False  # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL    = 0      # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
-# Gamma 8-bit correction table
+# Gamma 8-bit correction table from:
+# https://learn.adafruit.com/led-tricks-gamma-correction/the-quick-fix
 gamma8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                # 16
           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1,                # 32
           1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,                # 48
@@ -721,6 +722,14 @@ if __name__ == '__main__':
     # the application.
     gblBreak = False
     gblExit = False
+
+    # This next variable can be changed by an MQTT message and I use this
+    # to stop the motion detection lighting code if I want the LED strip
+    # just to be continuously on for a period of time. For example, I have
+    # the strip come on at sunrise and go off at 10 PM, and then go into
+    # motion detection mode where it comes on if motion is detected. All 
+    # of this is controlled my messages from a Node-Red website via
+    # MQTT messages.
     gblDetectingMotion = True   # Turn this on my default for LED strips
                                 # with this feature.
 
@@ -751,7 +760,7 @@ if __name__ == '__main__':
     # LED strip specific topics
     ourClient.subscribe("strip_pattern_" + host_name)
 
-    # Motion detection commends for strips with one attached
+    # Motion detection commands for strips (with one attached)
     ourClient.subscribe("motion_on_" + host_name)
     ourClient.subscribe("motion_off_" + host_name)
  
@@ -776,7 +785,8 @@ if __name__ == '__main__':
 
         # If the LED strip is has a motion sensor connected, then turn on
         # the strip for a little bit of time (determined by potentiometer
-        # on the sensor) and then turn the LEDs off.
+        # on the sensor) and then turn the LEDs off when motion is no
+        # longer detected.
         if using_motion_sensor():
             if GPIO.input(PIR_PIN):
                 if not motion_detected:
