@@ -793,7 +793,10 @@ if __name__ == '__main__':
                     motion_detected = True
                     print("Motion detected")
                     if get_led_strip_type() == ws.SK6812W_STRIP:
-                        set_strip_color(gblStrip, "000000,200,130")
+
+                        # Experimenting with white level for strip in kitchen.
+                        # Changed white level from 130 to 160
+                        set_strip_color(gblStrip, "000000,200,160")
                     else:
                         set_strip_color(gblStrip, "000080,110")
 
