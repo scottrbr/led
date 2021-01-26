@@ -81,6 +81,8 @@ def get_led_strip_type():
         strip_type = ws.SK6812W_STRIP
     elif host_name == "strip03":
         strip_type = ws.SK6812W_STRIP
+    elif host_name == "fireplace":
+        strip_type = ws.SK6812W_STRIP
     elif host_name == "raspberrypi4":
         strip_type = ws.WS2811_STRIP_GRB
     elif host_name == "candle01":
@@ -105,6 +107,8 @@ def get_led_count():
         led_count = 188
     elif host_name == "strip03":
         led_count = 117
+    elif host_name == "fireplace":
+        led_count = 94*2
     elif host_name == "raspberrypi4":
         led_count = 4
     elif host_name == "candle01":
@@ -136,6 +140,25 @@ def using_motion_sensor():
             sensor_use = True
  
     return sensor_use
+
+#
+# LED strips and candles (short LED strips) share common function (but not
+# all) so add a function where we can test if this is a LED strip.
+#
+def is_led_strip():
+
+    host_name = socket.gethostname()
+    led_strip = False
+
+    if host_name.find("strip") > -1:    # LED strip specific functions
+        led_strip = True
+    elif host_name.find("fireplace") > -1:
+        led_strip = True
+    elif host_name == "raspberrypi4":   # This computer is used for development
+        led_strip = True               # Put it in here in case we are working
+                                        # on LED functions.
+
+    return led_strip 
 
 
 #
@@ -177,6 +200,8 @@ def set_strip_brightness(strip, suggested_brightness=0):
         max_brightness = 120
     elif host_name == "strip03":
         max_brightness = 120
+    elif host_name == "fireplace":
+        max_brightness = 200
     elif host_name == "raspberrypi4": # This computer is used for development
         max_brightness = 140
     elif host_name == "candle01":
@@ -651,7 +676,7 @@ def LED_strip_CallBack(client, userdata, message):
     gblBreak = False
 
     # LED strip specific functions here
-    if host_name.find("strip") > -1 or host_name.find("raspberrypi4") > -1:    # LED strip specific instructions
+    if is_led_strip():
         if topic == "on_" + host_name:
             set_strip_color(gblStrip, message)
         elif topic == "motion_on_" + host_name:
