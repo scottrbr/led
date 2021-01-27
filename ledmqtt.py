@@ -725,7 +725,7 @@ def LED_strip_CallBack(client, userdata, message):
                 Minutes = 180
                 _thread.start_new_thread( Twinkle, (gblStrip, 25, 255, Minutes, True))
             elif message == "rwb":
-                _thread.start_new_thread( red_white_blue: (gblStrip, ) )
+                _thread.start_new_thread( red_white_blue, (gblStrip, ) )
             elif message == "xmas":
                 _thread.start_new_thread( XMAS_theater_chase, (gblStrip, ) )
             elif message == "rainbow_glow":
