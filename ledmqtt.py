@@ -239,16 +239,16 @@ def theaterChase(strip, color, wait_ms=50, iterations=10):
                 strip.setPixelColor(i+q, 0)
 
 
-#def wheel(pos):
-#    """Generate rainbow colors across 0-255 positions."""
-#    if pos < 85:
-#        return Color(pos * 3, 255 - pos * 3, 0)
-#    elif pos < 170:
-#        pos -= 85
-#        return Color(255 - pos * 3, 0, pos * 3)
-#    else:
-#        pos -= 170
-#        return Color(0, pos * 3, 255 - pos * 3)
+def wheel_no_gamma(pos):
+    """Generate rainbow colors across 0-255 positions."""
+    if pos < 85:
+        return Color(pos * 3, 255 - pos * 3, 0)
+    elif pos < 170:
+        pos -= 85
+        return Color(255 - pos * 3, 0, pos * 3)
+    else:
+        pos -= 170
+        return Color(0, pos * 3, 255 - pos * 3)
 
 
 def wheel(pos):
@@ -308,7 +308,35 @@ def XMAS_theater_chase(strip, wait_ms=100):
                 strip.setPixelColor(i+q, Color(0, 255, 0))
                 if gblBreak or gblExit:
                     break
- 
+
+
+#
+# This function will set the 
+# cycle time is in seconds
+def rainbow_glow(strip, brightness, cycle_time):
+
+    global gblBreak
+    global gblExit
+
+    # since we will be using the sheel function which gives us 255 variations of
+    # colors, slice by 255
+    time_per_shade = cycle_time / 255
+    current_color = random.randint(0, 255)
+
+    set_strip_brightness(strip, brightness)
+
+    while not gblBreak and not gblExit:
+
+        for i in range(strip.numPixels()):
+            strip.setPixelColor(i, wheel_no_gamma(current_color))
+
+        strip.show()
+        time.sleep(time_per_shade)
+        current_color += 1
+        if current_color>255:
+            current_color = 0
+
+
 #
 # General function I found on the internet to find the "nth" occurence
 # of a character.
@@ -697,9 +725,12 @@ def LED_strip_CallBack(client, userdata, message):
                 Minutes = 180
                 _thread.start_new_thread( Twinkle, (gblStrip, 25, 255, Minutes, True))
             elif message == "rwb":
-                _thread.start_new_thread( red_white_blue, (gblStrip, ) )
+                _thread.start_new_thread( red_white_blue: (gblStrip, ) )
             elif message == "xmas":
                 _thread.start_new_thread( XMAS_theater_chase, (gblStrip, ) )
+            elif message == "rainbow_glow":
+                _thread.start_new_thread( rainbow_glow, (gblStrip, 150, 3600) )
+
 
     # Put candle specific handlers here
     if is_candle():                         # Candle specific functions
@@ -801,8 +832,8 @@ if __name__ == '__main__':
     print("Ready!")
 
     # Put test code here when needed.
-    #if len(sys.argv) > 1:
-    #    XMAS_theater_chase(gblStrip)
+#    if len(sys.argv) > 1:
+#        rainbow_glow(gblStrip, 80, 600)
 
 # Main program loop
     motion_detected = False
