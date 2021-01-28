@@ -262,6 +262,11 @@ def wheel(pos):
         pos -= 170
         return Color(0, gamma8[pos * 3], gamma8[255 - pos * 3])
 
+
+
+
+
+
 # Create a moving rainbow
 def rainbow(strip, wait_ms=50, iterations=10):
 
@@ -320,21 +325,91 @@ def rainbow_glow(strip, brightness, cycle_time):
 
     # since we will be using the sheel function which gives us 255 variations of
     # colors, slice by 255
-    time_per_shade = cycle_time / 255
-    current_color = random.randint(0, 255)
+    max_wl = 700
+    white = 50
+    time_per_shade = cycle_time / ((max_wl-380)*2)  # we loop up and then down so *2
+#    print("Sleep time:", time_per_shade)
+    starting_wl = random.randint(380, max_wl)
 
     set_strip_brightness(strip, brightness)
 
     while not gblBreak and not gblExit:
 
-        for i in range(strip.numPixels()):
-            strip.setPixelColor(i, wheel_no_gamma(current_color))
+        for current_color in range(starting_wl, max_wl):
+            for i in range(strip.numPixels()):
+                # strip.setPixelColor(i, wheel_no_gamma(current_color))
+                R, G, B = wavelength_to_rgb(current_color)
+#                print("R:", R, " G:", G, " B:", B)
+                if get_led_strip_type() == ws.SK6812W_STRIP:
+                    strip.setPixelColor(i, Color(R, G, B, white))
+                else:
+                    strip.setPixelColor(i, Color(R, G, B))
 
-        strip.show()
-        time.sleep(time_per_shade)
-        current_color += 1
-        if current_color>255:
-            current_color = 0
+            strip.show()
+            time.sleep(time_per_shade)
+
+
+        for current_color in range(max_wl, 380, -1):
+            for i in range(strip.numPixels()):
+                # strip.setPixelColor(i, wheel_no_gamma(current_color))
+                R, G, B = wavelength_to_rgb(current_color)
+                if get_led_strip_type() == ws.SK6812W_STRIP:
+                    strip.setPixelColor(i, Color(R, G, B, white))
+                else:
+                   strip.setPixelColor(i, Color(R, G, B))
+
+            strip.show()
+            time.sleep(time_per_shade)
+
+
+        starting_wl = 380
+
+def wavelength_to_rgb(wavelength, gamma=0.8):
+
+    '''This converts a given wavelength of light to an 
+    approximate RGB color value. The wavelength must be given
+    in nanometers in the range from 380 nm through 750 nm
+    (789 THz through 400 THz).
+
+    Based on code by Dan Bruton
+    http://www.physics.sfasu.edu/astro/color/spectra.html
+    '''
+
+    wavelength = float(wavelength)
+    if wavelength >= 380 and wavelength <= 440:
+        attenuation = 0.3 + 0.7 * (wavelength - 380) / (440 - 380)
+        R = ((-(wavelength - 440) / (440 - 380)) * attenuation) ** gamma
+        G = 0.0
+        B = (1.0 * attenuation) ** gamma
+    elif wavelength >= 440 and wavelength <= 490:
+        R = 0.0
+        G = ((wavelength - 440) / (490 - 440)) ** gamma
+        B = 1.0
+    elif wavelength >= 490 and wavelength <= 510:
+        R = 0.0
+        G = 1.0
+        B = (-(wavelength - 510) / (510 - 490)) ** gamma
+    elif wavelength >= 510 and wavelength <= 580:
+        R = ((wavelength - 510) / (580 - 510)) ** gamma
+        G = 1.0
+        B = 0.0
+    elif wavelength >= 580 and wavelength <= 645:
+        R = 1.0
+        G = (-(wavelength - 645) / (645 - 580)) ** gamma
+        B = 0.0
+    elif wavelength >= 645 and wavelength <= 750:
+        attenuation = 0.3 + 0.7 * (750 - wavelength) / (750 - 645)
+        R = (1.0 * attenuation) ** gamma
+        G = 0.0
+        B = 0.0
+    else:
+        R = 0.0
+        G = 0.0
+        B = 0.0
+    R *= 255
+    G *= 255
+    B *= 255
+    return int(R), int(G), int(B)
 
 
 #
@@ -729,7 +804,7 @@ def LED_strip_CallBack(client, userdata, message):
             elif message == "xmas":
                 _thread.start_new_thread( XMAS_theater_chase, (gblStrip, ) )
             elif message == "rainbow_glow":
-                _thread.start_new_thread( rainbow_glow, (gblStrip, 150, 3600) )
+                _thread.start_new_thread( rainbow_glow, (gblStrip, 132, 3600) )
 
 
     # Put candle specific handlers here
@@ -833,7 +908,7 @@ if __name__ == '__main__':
 
     # Put test code here when needed.
 #    if len(sys.argv) > 1:
-#        rainbow_glow(gblStrip, 80, 600)
+#        rainbow_glow(gblStrip, 120, 600)
 
 # Main program loop
     motion_detected = False
