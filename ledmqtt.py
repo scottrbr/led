@@ -325,44 +325,93 @@ def rainbow_glow(strip, brightness, cycle_time):
 
     # since we will be using the sheel function which gives us 255 variations of
     # colors, slice by 255
-    max_wl = 700
-    white = 50
-    time_per_shade = cycle_time / ((max_wl-380)*2)  # we loop up and then down so *2
-#    print("Sleep time:", time_per_shade)
-    starting_wl = random.randint(380, max_wl)
+    max_wl = 660
+    min_wl = 380
+    white = 0   # 50
 
+    # In the first loop start at a random wavelength so it is not
+    # always the same.
+    starting_wl = random.randint(min_wl, max_wl)
+
+    time_per_shade = cycle_time / ((max_wl-min_wl+60))  # we loop up and then down plus 2*30 for white
+ 
     set_strip_brightness(strip, brightness)
 
     while not gblBreak and not gblExit:
 
         for current_color in range(starting_wl, max_wl):
+            R, G, B = wavelength_to_rgb(current_color)
             for i in range(strip.numPixels()):
-                # strip.setPixelColor(i, wheel_no_gamma(current_color))
-                R, G, B = wavelength_to_rgb(current_color)
-#                print("R:", R, " G:", G, " B:", B)
                 if get_led_strip_type() == ws.SK6812W_STRIP:
                     strip.setPixelColor(i, Color(R, G, B, white))
                 else:
                     strip.setPixelColor(i, Color(R, G, B))
 
+            if gblBreak or gblExit:
+                return
+
             strip.show()
+#            print("wl:%3d,R:%3d,G:%3d,B:%3d" % (current_color, R, G, B))
             time.sleep(time_per_shade)
 
-
-        for current_color in range(max_wl, 380, -1):
+        # Turn on the white now (the wavelength function will not work here)
+        # It is about 60 steps to move to one full color. We do this in
+        # 2 parts so use 30
+        # Continue to use the last value for 'R'
+        steps = 30
+        white_steps = int(255 / steps)
+        red_steps = int(R / steps)
+        white_fade = white_steps
+        for i in range(steps):
             for i in range(strip.numPixels()):
-                # strip.setPixelColor(i, wheel_no_gamma(current_color))
-                R, G, B = wavelength_to_rgb(current_color)
                 if get_led_strip_type() == ws.SK6812W_STRIP:
-                    strip.setPixelColor(i, Color(R, G, B, white))
+                    strip.setPixelColor(i, Color(R, 0, 0, white_fade))
                 else:
-                   strip.setPixelColor(i, Color(R, G, B))
+                   strip.setPixelColor(i, Color(R, 0, 0))
+
+            if gblBreak or gblExit:
+                return
 
             strip.show()
             time.sleep(time_per_shade)
 
+            # Turn up the white and fade the red
+            white_fade += white_steps
+            if white_fade > 255:
+                white_fade = 255
+            R -= red_steps
+            if R < 0:
+                R = 0
+     
+        # at a wavelegth of 380, R & B are 97
+        blue_steps = red_steps = int(97 / steps)
+        white_fade = 255
+        R = B = blue_steps
+        for i in range(steps):
+            for i in range(strip.numPixels()):
+                if get_led_strip_type() == ws.SK6812W_STRIP:
+                    strip.setPixelColor(i, Color(R, 0, B, white_fade))
+                else:
+                   strip.setPixelColor(i, Color(R, 0, B))
 
+            if gblBreak or gblExit:
+                return
+            strip.show()
+            time.sleep(time_per_shade)
+
+            # Turn down the white and turn up the violet
+            white_fade -= white_steps
+            if white_fade < 0:
+                white_fade = 0
+            R += red_steps
+            if R < 0:
+                R = 0
+
+            B = R
+
+        # Start at the beginning of the wavelength loop
         starting_wl = 380
+
 
 def wavelength_to_rgb(wavelength, gamma=0.8):
 
@@ -804,6 +853,7 @@ def LED_strip_CallBack(client, userdata, message):
             elif message == "xmas":
                 _thread.start_new_thread( XMAS_theater_chase, (gblStrip, ) )
             elif message == "rainbow_glow":
+                # Default to a 1 hour rainbow transision (3600 seconds)
                 _thread.start_new_thread( rainbow_glow, (gblStrip, 132, 3600) )
 
 
