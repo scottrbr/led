@@ -22,7 +22,7 @@ SK6812W   = "SK6812W"
 #
 # Below is a short description for the devices referenced in this file
 # strip01 - LED strip on back patio
-# strip02 - lights around computer displays
+# monitorstrip - lights around computer displays for video conferences
 # strip03 - under lighting for main kitchen cabinets
 # raspberrypi4 - development and general use raspberry pi
 # candle01 - electric led candle
@@ -66,6 +66,8 @@ gamma8 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,                # 16
         177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213, # 240
         215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255] # 256
 
+gbl_mqtt_connected = 0
+
 #
 # Return the strip type we are using: RGB (WS281B) or an RGBW (SK6812W) strip.
 # This is based on the name of the device.
@@ -77,7 +79,7 @@ def get_led_strip_type():
 
     if host_name == "strip01":
         strip_type = ws.WS2811_STRIP_GRB
-    elif host_name == "strip02":
+    elif host_name == "monitorstrip":
         strip_type = ws.SK6812W_STRIP
     elif host_name == "strip03":
         strip_type = ws.SK6812W_STRIP
@@ -103,7 +105,7 @@ def get_led_count():
 
     if host_name == "strip01":
         led_count = 300
-    elif host_name == "strip02":
+    elif host_name == "monitorstrip":
         led_count = 188
     elif host_name == "strip03":
         led_count = 117
@@ -196,7 +198,7 @@ def set_strip_brightness(strip, suggested_brightness=0):
 
     if host_name == "strip01":
         max_brightness = 120
-    elif host_name == "strip02":
+    elif host_name == "monitorstrip":
         max_brightness = 120
     elif host_name == "strip03":
         max_brightness = 120
@@ -229,6 +231,8 @@ def set_pixel_color(strip, pixel, R, G, B, W=-1):
 
 def theaterChase(strip, color, wait_ms=50, iterations=10):
     """Movie theater light style chaser animation."""
+    set_strip_brightness(strip, 140)
+
     for j in range(iterations):
         for q in range(3):
             for i in range(0, strip.numPixels(), 3):
@@ -880,6 +884,41 @@ def LED_strip_CallBack(client, userdata, message):
 #    gblBreak = False
 
 
+def setup_mqtt_subscriptions(client):
+
+    # LED strip specific topics
+    client.subscribe("strip_pattern_" + host_name)
+
+    # Motion detection commands for strips (with one attached)
+    client.subscribe("motion_on_" + host_name)
+    client.subscribe("motion_off_" + host_name)
+ 
+    # These are generic topics across all devices
+    client.subscribe("on_" + host_name)
+    client.subscribe("off_" + host_name)
+    client.subscribe("break_" + host_name)
+    client.subscribe("exit_" + host_name)
+
+
+def mqtt_on_connect(client, userdata, flags, rc):
+    global gbl_mqtt_connected
+
+    # If we are connected now but previously did not have the connection,
+    # then setup our subscriptions again.
+    if gbl_mqtt_connected == 0:
+        setup_mqtt_subscriptions(client)
+
+    gbl_mqtt_connected = 1
+    print("MQTT Connected")
+
+
+def mqtt_on_disconnect(client, userdata, rc):
+    global gbl_mqtt_connected
+
+    gbl_mqtt_connected = 0
+    print("MQTT Disconnected")
+
+
 # Main program logic follows:
 if __name__ == '__main__':
 
@@ -887,6 +926,7 @@ if __name__ == '__main__':
     global gblExit
     global gblStrip
     global gblDetectingMotion
+    #global gbl_mqtt_connected
 
     # If no extra parameters are set (currently we don't take any), then 
     # assume we are doing testing where we do not need to have extra
@@ -938,19 +978,14 @@ if __name__ == '__main__':
     ourClient = mqtt.Client(socket.gethostname())       # Create a MQTT client object
     ourClient.connect("192.168.1.202", 1883)            # Connect to the test MQTT broker
 
-    # LED strip specific topics
-    ourClient.subscribe("strip_pattern_" + host_name)
+    setup_mqtt_subscriptions(ourClient)
 
-    # Motion detection commands for strips (with one attached)
-    ourClient.subscribe("motion_on_" + host_name)
-    ourClient.subscribe("motion_off_" + host_name)
- 
-    # These are generic topics across all devices
-    ourClient.subscribe("on_" + host_name)
-    ourClient.subscribe("off_" + host_name)
-    ourClient.subscribe("break_" + host_name)
-    ourClient.subscribe("exit_" + host_name)
     ourClient.on_message = LED_strip_CallBack   # Attach the messageFunction to subscription
+
+    # These next two are used in case we lose connection, we can recognize it
+    ourClient.on_connect = mqtt_on_connect
+    ourClient.on_disconnect = mqtt_on_disconnect
+
     ourClient.loop_start()                      # Start the MQTT client
 
     print("LED count is: ", gblStrip.numPixels())
@@ -963,6 +998,10 @@ if __name__ == '__main__':
 # Main program loop
     motion_detected = False
     while not gblExit:
+
+        # Check to see if we are still connected to the MQTT server
+#        if gbl_mqtt_connected == 0:
+#            print("We lost the MQTT Server connection")
 
         # If the LED strip is has a motion sensor connected, then turn on
         # the strip for a little bit of time (determined by potentiometer
