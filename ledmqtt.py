@@ -23,7 +23,7 @@ SK6812W   = "SK6812W"
 # Below is a short description for the devices referenced in this file
 # strip01 - LED strip on back patio
 # monitorstrip - lights around computer displays for video conferences
-# strip03 - under lighting for main kitchen cabinets
+# kitchenstrip - under lighting for main kitchen cabinets
 # raspberrypi4 - development and general use raspberry pi
 # candle01 - electric led candle
  
@@ -81,7 +81,7 @@ def get_led_strip_type():
         strip_type = ws.WS2811_STRIP_GRB
     elif host_name == "monitorstrip":
         strip_type = ws.SK6812W_STRIP
-    elif host_name == "strip03":
+    elif host_name == "kitchenstrip":
         strip_type = ws.SK6812W_STRIP
     elif host_name == "fireplace":
         strip_type = ws.SK6812W_STRIP
@@ -107,7 +107,7 @@ def get_led_count():
         led_count = 300
     elif host_name == "monitorstrip":
         led_count = 188
-    elif host_name == "strip03":
+    elif host_name == "kitchenstrip":
         led_count = 117
     elif host_name == "fireplace":
         led_count = 94*2
@@ -137,7 +137,7 @@ def using_motion_sensor():
     if host_name == "raspberrypi4":
         if gblDetectingMotion:
             sensor_use = True
-    elif host_name == "strip03":
+    elif host_name == "kitchenstrip":
         if gblDetectingMotion:
             sensor_use = True
  
@@ -200,7 +200,7 @@ def set_strip_brightness(strip, suggested_brightness=0):
         max_brightness = 120
     elif host_name == "monitorstrip":
         max_brightness = 120
-    elif host_name == "strip03":
+    elif host_name == "kitchenstrip":
         max_brightness = 120
     elif host_name == "fireplace":
         max_brightness = 200
