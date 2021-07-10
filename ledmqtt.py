@@ -25,6 +25,7 @@ SK6812W   = "SK6812W"
 # monitorstrip - lights around computer displays for video conferences
 # kitchenstrip - under lighting for main kitchen cabinets
 # raspberrypi4 - development and general use raspberry pi
+# fireplacestrip - fireplace lighting
 # candle01 - electric led candle
  
 import sys
@@ -83,7 +84,7 @@ def get_led_strip_type():
         strip_type = ws.SK6812W_STRIP
     elif host_name == "kitchenstrip":
         strip_type = ws.SK6812W_STRIP
-    elif host_name == "fireplace":
+    elif host_name == "fireplacestrip":
         strip_type = ws.SK6812W_STRIP
     elif host_name == "raspberrypi4":
         strip_type = ws.WS2811_STRIP_GRB
@@ -109,7 +110,7 @@ def get_led_count():
         led_count = 188
     elif host_name == "kitchenstrip":
         led_count = 117
-    elif host_name == "fireplace":
+    elif host_name == "fireplacestrip":
         led_count = 94*2
     elif host_name == "raspberrypi4":
         led_count = 4
@@ -153,8 +154,6 @@ def is_led_strip():
     led_strip = False
 
     if host_name.find("strip") > -1:    # LED strip specific functions
-        led_strip = True
-    elif host_name.find("fireplace") > -1:
         led_strip = True
     elif host_name == "raspberrypi4":   # This computer is used for development
         led_strip = True               # Put it in here in case we are working
@@ -202,7 +201,7 @@ def set_strip_brightness(strip, suggested_brightness=0):
         max_brightness = 120
     elif host_name == "kitchenstrip":
         max_brightness = 120
-    elif host_name == "fireplace":
+    elif host_name == "fireplacestrip":
         max_brightness = 200
     elif host_name == "raspberrypi4": # This computer is used for development
         max_brightness = 140
@@ -331,7 +330,7 @@ def rainbow_glow(strip, brightness, cycle_time):
     # colors, slice by 255
     max_wl = 660
     min_wl = 380
-    white = 0   # 50
+    white = 50
 
     # In the first loop start at a random wavelength so it is not
     # always the same.
